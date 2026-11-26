@@ -20,7 +20,7 @@ var PL_NAMES=['Саша','Маша','Дима','Аня','Макс','Лена','�
 var TM_NAMES=['Ураганы','Искры','Пузырьки','Вулканы','Лисы','Кометы','Ниндзя','Совы','Тигры','Орбита','Фейерверк','Бумеранг'];
 
 var prefs=Object.assign({mode:'ffa',ffa:['Игрок 1','Игрок 2','Игрок 3'],team:['Ураганы','Искры','Пузырьки'],
- ptsF:30,ptsT:50,time:60,penalty:true,lastAll:true,blitz:false,gest:false,draw:false,saves:0,sound:true,decks:['easy'],installHide:false},ld('elias.prefs',{}));
+ ptsF:30,ptsT:50,time:60,penalty:true,lastAll:true,blitz:false,gest:false,draw:false,saves:0,sound:true,markWho:false,decks:['easy'],installHide:false},ld('elias.prefs',{}));
 function savePrefs(){sv('elias.prefs',prefs)}
 var played=ld('elias.played',{});
 var custom=ld('elias.custom',[]);
@@ -55,7 +55,7 @@ function calc(logs){
  var n=G.names.length,sc=[],used=[],i;for(i=0;i<n;i++){sc.push(0);used.push(0)}
  var v=unit(G.set);
  logs.forEach(function(t){t.items.forEach(function(it){
-  if(it.st==='g'){if(G.mode==='ffa'){sc[it.by]+=v;sc[t.e]+=v}else sc[it.by!=null?it.by:t.e]+=v}
+  if(it.st==='g'){if(G.mode==='ffa'&&G.set.markWho&&it.by!=null){sc[it.by]+=v;sc[t.e]+=v}else sc[it.by!=null?it.by:t.e]+=v}
   else if(it.st==='s'){if(G.set.penalty)sc[t.e]-=1}
   else if(it.st==='f'){used[t.e]++}})});
  return {sc:sc,used:used}}
@@ -98,7 +98,7 @@ function showMenu(){
 function showHow(){
  screen(hdr('Как играть','menu')+'<div class="body"><div class="how">'+
  '<h2>Идея</h2><p>Один объясняет слово с карточки, остальные угадывают. Называть само слово и однокоренные нельзя.</p>'+
- '<h2>Все против всех</h2><ul><li>Объясняющий идёт по кругу.</li><li>Слово угадали: свайп <span class="sw">вверх ▲</span> и выбери, кто угадал первым. Ему +1 и объясняющему +1.</li><li>Пропуск: свайп <span class="sw">вниз ▼</span>, объясняющему −1.</li><li>Когда время вышло, последнее слово можно отдать любому игроку.</li><li>Игра идёт до 30 очков (можно изменить).</li></ul>'+
+ '<h2>Все против всех</h2><ul><li>Объясняющий идёт по кругу.</li><li>Слово угадали: свайп <span class="sw">вверх ▲</span>, объясняющему +1.</li><li>Пропуск: свайп <span class="sw">вниз ▼</span>, объясняющему −1.</li><li>Когда время вышло, последнее слово: угадали или нет. Угадали — +1 объясняющему.</li><li>В настройках можно включить «Отмечать, кто угадал»: тогда очко получают и угадавший, и объясняющий.</li><li>Игра идёт до 30 очков (можно изменить).</li></ul>'+
  '<h2>Командная игра</h2><ul><li>Объясняет игрок из команды, угаданное слово +1 команде, пропуск −1.</li><li>Последнее слово после таймера может забрать любая команда.</li><li>Обычно играют до 50 очков, ход заканчивается кругом, чтобы у всех было поровну ходов.</li></ul>'+
  '<h2>Модификации</h2><ul><li><b>Без штрафа</b>: пропуск ничего не отнимает.</li><li><b>Блиц</b>: ход 30 секунд, +2 за слово.</li><li><b>Жесты / рисунок</b>: на некоторых карточках появляется задание.</li><li><b>Спасения</b>: 1–2 пропуска за игру без штрафа.</li></ul>'+
  '<h2>Слова</h2><p>Слова не повторяются: игра помнит сыгранные и показывает только новые. Можно добавить свою колоду, вставив слова списком.</p></div></div>')}
@@ -122,6 +122,7 @@ function showSettings(){
  '<div class="set '+(prefs.blitz?'dim':'')+'" id="timeset"><div class="l1"><div><div class="t">Время хода</div><div class="s">длительность в секундах</div></div><div class="v" id="v2">'+(prefs.blitz?30:prefs.time)+'</div></div><input type="range" id="r2" min="15" max="120" step="5" value="'+prefs.time+'"></div>'+
  tg('penalty','Штраф за пропуск','−1 очко за каждое пропущенное слово')+
  tg('lastAll','Последнее слово всем','после таймера слово может угадать '+(m==='ffa'?'любой игрок':'любая команда'))+
+ (m==='ffa'?tg('markWho','Отмечать, кто угадал','после каждого слова выбрать, кто угадал первым: +1 ему и +1 объясняющему'):'')+
  tg('blitz','Блиц','30 секунд на ход, +2 за слово')+
  tg('gest','Задания: жесты','на части карточек — показать слово без слов')+
  tg('draw','Задания: рисунок','на части карточек — нарисовать слово')+
@@ -159,7 +160,7 @@ function addDeckModal(){modal('<h3>Своя колода</h3><p>Вставь с�
 function startGame(){
  var m=prefs.mode,nm=names().map(function(n,i){return (n||'').trim()||((m==='ffa'?'Игрок ':'Команда ')+(i+1))});
  if(poolFor(prefs.decks).length<10){toast('В выбранных колодах слишком мало слов');return}
- G={mode:m,names:nm,set:{ptsF:prefs.ptsF,ptsT:prefs.ptsT,time:prefs.time,penalty:prefs.penalty,lastAll:prefs.lastAll,blitz:prefs.blitz,gest:prefs.gest,draw:prefs.draw,saves:prefs.saves,sound:prefs.sound},
+ G={mode:m,names:nm,set:{ptsF:prefs.ptsF,ptsT:prefs.ptsT,time:prefs.time,penalty:prefs.penalty,lastAll:prefs.lastAll,markWho:!!prefs.markWho,blitz:prefs.blitz,gest:prefs.gest,draw:prefs.draw,saves:prefs.saves,sound:prefs.sound},
  decks:prefs.decks.slice(),turnNo:0,logs:[],phase:'ready',over:false};
  saveG();showReady()}
 
@@ -171,7 +172,7 @@ function chipsHtml(){var s=G.set,c=['<span class="chip b">⏱ '+(s.blitz?30:s.ti
 function showReady(){
  closeOv();G.phase='ready';saveG();
  var e=curE(),cs=calc(G.logs),left=G.set.saves-cs.used[e];
- var info=G.mode==='ffa'?'Остальные угадывают все сразу. Кто угадал первым: +1 ему и +1 тебе. Пропуск −1 тебе.':'Объясняет игрок команды, остальные угадывают.';
+ var info=G.mode==='ffa'?(G.set.markWho?'Остальные угадывают все сразу. Кто угадал первым: +1 ему и +1 тебе. Пропуск −1 тебе.':'Остальные угадывают все сразу. Угадали — +1 тебе. Пропуск −1 тебе.'):'Объясняет игрок команды, остальные угадывают.';
  if(!G.set.penalty)info=info.replace(/ Пропуск −1 тебе\./,' Пропуск без штрафа.').replace('Объясняет игрок команды, остальные угадывают.','Объясняет игрок команды, остальные угадывают. Пропуск без штрафа.');
  if(G.set.penalty&&G.set.saves>0)info+=' Спасений осталось: '+Math.max(0,left)+'.';
  screen('<div class="top"><button data-act="menu">‹ Меню</button><button data-act="board">Табло</button></div>'+
@@ -219,7 +220,7 @@ function btnFling(dir){var el=$('#wc');if(!el||P.busy||P.paused||P.sheet)return;
 function advance(){P.card=newCard();mountCard();updPlay()}
 function onGuess(){
  if(P.over)return;
- if(G.mode==='ffa'){
+ if(G.mode==='ffa'&&G.set.markWho){
   var e=curE(),opts=G.names.map(function(n,i){return i===e?'':'<button class="opt b" data-by="'+i+'">'+esc(n)+'</button>'}).join('');
   P.sheet=true;
   sheet('<h3>Кто угадал первым?</h3><div class="sub">«'+esc(P.card.w)+'»</div><div class="opts">'+opts+'<button class="opt gy w" data-by="-1">Никто · вернуть слово</button></div>',false);
@@ -252,7 +253,13 @@ function pauseGame(){
 document.addEventListener('visibilitychange',function(){if(document.hidden&&P&&!P.over&&!P.paused&&$('#tm'))pauseGame()});
 
 function showLast(){
- var e=curE(),opts=G.names.map(function(n,i){return (G.mode==='ffa'&&i===e)?'':'<button class="opt" data-by="'+i+'">'+esc(n)+(G.mode==='team'&&i===e?' (свои)':'')+'</button>'}).join('');
+ var e=curE();
+ if(G.mode==='ffa'&&!G.set.markWho){
+  screen('<h2>Время вышло!</h2><div class="q">Последнее слово</div><div class="lw">'+esc(P.card.w)+'</div><div class="q">Угадали?</div><div class="chs"><button class="opt" data-ok="1">Угадали</button><button class="opt gy" data-ok="0">Нет</button></div>','last');
+  $$('[data-ok]',app).forEach(function(b){b.onclick=function(){var ok=b.getAttribute('data-ok')==='1';
+   P.items.push(ok?{w:P.card.w,st:'g',by:e,last:true}:{w:P.card.w,st:'n',last:true});showResults()}});
+  return}
+ var opts=G.names.map(function(n,i){return (G.mode==='ffa'&&i===e)?'':'<button class="opt" data-by="'+i+'">'+esc(n)+(G.mode==='team'&&i===e?' (свои)':'')+'</button>'}).join('');
  screen('<h2>Время вышло!</h2><div class="q">Последнее слово</div><div class="lw">'+esc(P.card.w)+'</div><div class="q">Кто угадал?</div><div class="chs">'+opts+'<button class="opt gy" data-by="-1">Никто</button></div>','last');
  $$('[data-by]',app).forEach(function(b){b.onclick=function(){var by=+b.getAttribute('data-by');
   P.items.push(by<0?{w:P.card.w,st:'n',last:true}:{w:P.card.w,st:'g',by:by,last:true});showResults()}})}
@@ -262,7 +269,7 @@ function showResults(){
  closeOv();G.phase='results';var items=P.items,e=curE(),d=turnDelta(items),v=unit(G.set);
  var g=items.filter(function(i){return i.st==='g'}).length,s=items.filter(function(i){return i.st==='s'||i.st==='f'}).length;
  var rows=items.map(function(it,i){
-  var sub=it.st==='g'?(G.mode==='ffa'?'угадал(а): '+esc(G.names[it.by]):(it.by!=null&&it.by!==e?'забрала: '+esc(G.names[it.by]):'')):it.st==='f'?'спасение, без штрафа':it.st==='n'?'не засчитано':'';
+  var sub=it.st==='g'?(G.mode==='ffa'&&G.set.markWho&&it.by!=null?'угадал(а): '+esc(G.names[it.by]):(G.mode==='team'&&it.by!=null&&it.by!==e?'забрала: '+esc(G.names[it.by]):'')):it.st==='f'?'спасение, без штрафа':it.st==='n'?'не засчитано':'';
   var pt=it.st==='g'?'<span style="color:var(--g)">+'+v+'</span>':it.st==='s'&&G.set.penalty?'<span style="color:var(--r)">−1</span>':'<span style="color:#bbb">0</span>';
   return '<button class="rs" data-i="'+i+'"><div class="w">'+esc(it.w)+(it.last?' <small>последнее слово</small>':'')+(sub?'<small>'+sub+'</small>':'')+'</div><div class="pt">'+pt+'</div>'+icon(it)+'</button>'}).join('');
  screen(hdr('Итоги хода','menu',esc(G.names[e]))+'<div class="sum"><div><b class="p" id="sg">'+g+'</b>угадано</div><div><b class="m" id="ss">'+s+'</b>пропущено</div><div><b id="sd">'+(d>0?'+':'')+d+'</b>очки '+(G.mode==='ffa'?'объясняющего':'команды')+'</div></div>'+
@@ -270,8 +277,9 @@ function showResults(){
  var bk=$('.hdr .back');if(bk)bk.style.visibility='hidden'}
 function editItem(i){
  var it=P.items[i],e=curE(),o='';
- if(G.mode==='ffa'){G.names.forEach(function(n,k){if(k!==e)o+='<button class="opt b" data-st="g" data-by="'+k+'">Угадал(а): '+esc(n)+'</button>'})}
- else{G.names.forEach(function(n,k){o+='<button class="opt b" data-st="g" data-by="'+k+'">Угадали: '+esc(n)+(k===e?' (свои)':'')+'</button>'})}
+ if(G.mode==='ffa'&&G.set.markWho){G.names.forEach(function(n,k){if(k!==e)o+='<button class="opt b" data-st="g" data-by="'+k+'">Угадал(а): '+esc(n)+'</button>'})}
+ else if(G.mode==='team'){G.names.forEach(function(n,k){o+='<button class="opt b" data-st="g" data-by="'+k+'">Угадали: '+esc(n)+(k===e?' (свои)':'')+'</button>'})}
+ else o+='<button class="opt b" data-st="g" data-by="'+e+'">Угадали (+'+(G.set.blitz?2:1)+' объясняющему)</button>';
  o+='<button class="opt r" data-st="s">Пропуск'+(G.set.penalty?' (−1)':'')+'</button><button class="opt gy" data-st="f">Пропуск без штрафа</button><button class="opt gy" data-st="n">Не засчитывать</button>';
  sheet('<h3>'+esc(it.w)+'</h3><div class="sub">Поправить отметку</div><div class="opts">'+o+'</div>');
  $$('[data-st]',ov).forEach(function(b){b.onclick=function(){var st=b.getAttribute('data-st'),by=b.getAttribute('data-by');
@@ -351,6 +359,6 @@ document.addEventListener('contextmenu',function(e){e.preventDefault()});
 var st=document.createElement('style');st.textContent='@keyframes cardin{from{transform:translateY(40px) scale(.94);opacity:0}to{transform:none;opacity:1}}';document.head.appendChild(st);
 
 showMenu();
-if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'||location.hostname==='127.0.0.1')){navigator.serviceWorker.register('sw.js').catch(function(){})}
+if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'||location.hostname==='127.0.0.1')){navigator.serviceWorker.register('sw.js').catch(function(){});var __re=false;navigator.serviceWorker.addEventListener('controllerchange',function(){if(__re)return;__re=true;location.reload()})}
 window.__elias={get G(){return G},get P(){return P}};
 })();
