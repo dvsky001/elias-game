@@ -1,0 +1,20 @@
+{
+  "name": "Элиас — игра в слова",
+  "short_name": "Элиас",
+  "description": "Элиас (алиас) — игра в слова для компании: объясни слово, остальные угадывают. Ключевые слова: элиас, алиас, игра в слова, объясни слово.",
+  "lang": "ru",
+  "dir": "ltr",
+  "start_url": "./",
+  "scope": "./",
+  "id": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#13B9F5",
+  "theme_color": "#FFA51E",
+  "categories": ["games", "entertainment"],
+  "icons": [
+    {"src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}
