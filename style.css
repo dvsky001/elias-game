@@ -268,29 +268,52 @@ input{font:inherit;color:inherit}
 #dott{font-size:64px;font-weight:900;margin:10px 0;color:var(--o)}
 
 /* city showcase + ads */
-.citywrap{position:absolute;left:0;right:0;bottom:0;width:100%;height:48%;pointer-events:none;z-index:1}
+.citywrap{position:absolute;left:0;right:0;bottom:0;width:100%;height:48%;pointer-events:none;z-index:1;overflow:hidden}
 .citywrap .city{position:absolute;left:0;bottom:0;width:100%;height:100%;pointer-events:none}
-.adhot{pointer-events:auto;position:absolute;border:0;padding:0;cursor:pointer;text-align:center;color:#2b2b2b;font-weight:800;line-height:1.15}
+.citywrap .city .ad-svg{pointer-events:auto;cursor:pointer}
+.adhot{pointer-events:auto;position:absolute;border:0;padding:0;cursor:pointer;text-align:center;color:#2b2b2b;font-weight:800;line-height:1.15;background:transparent}
 .adhot img{display:block;width:100%;height:100%;object-fit:cover}
-.app.ads-off .adhot,.ads-off .adhot{pointer-events:none}
-.ad-bb{left:54%;bottom:42%;width:38%;max-width:170px;min-height:54px;background:#fffde8;border:3px solid #333!important;box-shadow:0 4px 0 #0003,0 0 0 2px #fff;padding:6px 8px;font-size:11px;transform:rotate(-3deg);z-index:2}
-.menu .ad-bb{bottom:64%;left:56%}
-.menu .ad-truck-track{bottom:36%}
-.ad-bb span{display:block}
-.ad-truck-track{position:absolute;left:0;right:0;bottom:18%;height:64px;overflow:hidden;pointer-events:none;z-index:2}
-.ad-truck{left:0;bottom:0;width:168px;height:62px;background:transparent;pointer-events:auto;animation:truckrun 18s linear infinite}
-.ad-truck .truckic{width:168px;height:62px;display:block}
-.ad-truck .ad-side{position:absolute;left:8px;top:18px;width:86px;height:24px;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;color:#222;padding:0 3px}
-.ad-truck .ad-side img{width:100%;height:100%;object-fit:cover}
-@keyframes truckrun{0%{transform:translateX(-180px)}100%{transform:translateX(520px)}}
-@media (prefers-reduced-motion:reduce){
- .ad-truck{animation:none;left:22%;transform:none}
+.app.ads-off .adhot,.ads-off .adhot,.app.ads-off .ad-svg,.ads-off .ad-svg{pointer-events:none}
+.ad-balloon{top:8%;right:3%;width:108px;height:154px;z-index:2;animation:balloonfloat 16s ease-in-out infinite}
+.ad-balloon .balic{width:100%;height:100%;display:block;overflow:visible}
+.ad-cloud{top:4%;left:1%;width:196px;height:96px;z-index:2;animation:clouddrift 22s ease-in-out infinite}
+.ad-cloud .cloudic{width:100%;height:100%;display:block;overflow:visible}
+.ad-truck-track{position:absolute;left:0;right:0;bottom:10%;height:86px;overflow:hidden;pointer-events:none;z-index:2}
+.ad-truck{left:0;bottom:0;width:280px;height:82px;background:transparent;pointer-events:auto;animation:furarun 24s linear infinite}
+.ad-truck .truckic{width:280px;height:82px;display:block;overflow:visible}
+@keyframes furarun{
+  0%,4%{transform:translateX(-300px)}
+  42%{transform:translateX(110%)}
+  42.01%,100%{transform:translateX(-300px)}
 }
-.citywrap.mute{height:36%;opacity:.42;filter:saturate(.35) brightness(1.15)}
+@keyframes balloonfloat{
+  0%,100%{transform:translate(0,0) rotate(-2deg)}
+  50%{transform:translate(10px,-16px) rotate(2deg)}
+}
+@keyframes clouddrift{
+  0%,100%{transform:translateX(0)}
+  50%{transform:translateX(18px)}
+}
+@media (prefers-reduced-motion:reduce){
+ .ad-truck{animation:none;left:6%;transform:none}
+ .ad-balloon{animation:none;transform:none}
+ .ad-cloud{animation:none;transform:none}
+}
+.citywrap.mute{height:36%;opacity:.4;filter:saturate(.35) brightness(1.15)}
 .play .citywrap,.ready .citywrap{z-index:0}
 .play .ptop,.play .pwho,.play .pbar,.play .arena,.play .pact,.ready .top,.ready .rcard,.ready .bot{position:relative;z-index:2}
-.menu .citywrap{height:52%}
+.play .ad-balloon,.ready .ad-balloon{top:14%;right:0;width:78px;height:112px}
+.play .ad-cloud,.ready .ad-cloud{top:12%;left:0;width:140px;height:70px}
+.play .ad-truck-track,.ready .ad-truck-track{bottom:19%;height:70px}
+.play .ad-truck,.ready .ad-truck{width:230px;height:68px}
+.play .ad-truck .truckic,.ready .ad-truck .truckic{width:230px;height:68px}
+.menu .citywrap{height:100%}
+.menu .citywrap .city{height:68%;width:132%;left:50%;margin-left:-66%;bottom:0;top:auto}
+.menu .ad-balloon{top:27%;right:3%;width:118px;height:168px}
+.menu .ad-cloud{top:33%;left:0;width:200px;height:98px}
+.menu .ad-truck-track{bottom:8%}
 .menu .btns,.menu .logo,.menu .tag,.menu .install{z-index:3}
+
 .premium{background:linear-gradient(#17B1EE,#7ED4F6)}
 .premium .body{background:transparent}
 .prem{text-align:center;padding:28px 24px}

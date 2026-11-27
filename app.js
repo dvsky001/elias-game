@@ -193,7 +193,7 @@ function sexKey(){return prefs.mode==='team'?'teamSex':prefs.mode==='pair'?'pair
 function sexes(){var k=sexKey();if(!prefs[k])prefs[k]=[];var n=names().length;while(prefs[k].length<n)prefs[k].push(prefs[k].length%2?'f':'m');if(prefs[k].length>n)prefs[k]=prefs[k].slice(0,n);return prefs[k]}
 /* Бесплатный Supabase: подставь URL проекта и anon-ключ, чтобы включить общий рейтинг.
    service_role сюда не класть. Пока пусто — вкладка «Топ» показывает заглушку. */
-var APP_VER='10.0';
+var APP_VER='11.0';
 var SUPABASE={url:'https://zzuyvlzraykibovxsfvc.supabase.co',anon:'sb_publishable_YIMP4FCnDx2cXFbqEz9sdA_E0NuRKpp'};
 function sbOn(){return !!(SUPABASE&&SUPABASE.url&&SUPABASE.anon)}
 function sbHeads(){return {'apikey':SUPABASE.anon,'Authorization':'Bearer '+SUPABASE.anon,'Content-Type':'application/json','Prefer':'return=representation'}}
@@ -400,7 +400,9 @@ function closeOv(){ov.className='';ov.innerHTML=''}
 function sheet(html,dismiss){ov.className='show';ov.innerHTML='<div class="bk"></div><div class="sheet">'+html+'</div>';if(dismiss!==false)$('.bk',ov).onclick=closeOv}
 function modal(html,dismiss){ov.className='show';ov.innerHTML='<div class="bk"></div><div class="modal">'+html+'</div>';if(dismiss!==false)$('.bk',ov).onclick=closeOv}
 
-function citySvg(){
+function adLines(ad,max,n){var s=String((ad&&ad.text)||'Здесь может быть ваша реклама').replace(/\s+/g,' ').trim(),w=s.split(' '),lines=[],cur='';w.forEach(function(x){var t=cur?cur+' '+x:x;if(t.length>max&&cur){lines.push(cur);cur=x}else cur=t});if(cur)lines.push(cur);return lines.slice(0,n||3)}
+function adPaint(ad,b){var src=adSafeUrl(ad&&ad.img||'');if(src)return '<image href="'+esc(src)+'" x="'+b.x+'" y="'+b.y+'" width="'+b.w+'" height="'+b.h+'" preserveAspectRatio="xMidYMid slice"'+(b.clip?' clip-path="url(#'+b.clip+')"':'')+'/>';var lines=adLines(ad,b.chars||12,b.lines||3),fs=b.fs||10,lh=fs*1.15,cx=b.x+b.w/2,cy=b.y+b.h/2,y0=cy-(lines.length-1)*lh/2+fs*.35;return lines.map(function(t,i){return '<text x="'+cx+'" y="'+(y0+i*lh)+'" text-anchor="middle" font-size="'+fs+'" font-weight="800" fill="'+(b.fill||'#3d2a14')+'" font-family="-apple-system,system-ui,sans-serif">'+esc(t)+'</text>'}).join('')}
+function citySvg(bb){
  var cols=['#FFB84D','#FF7A59','#FFD966','#7BD389','#fff','#B58CF2','#FF8FB1','#5FD0E8'],x=-6,h='',seed=7;
  function r(){seed=(seed*9301+49297)%233280;return seed/233280}
  while(x<420){var w=34+r()*32,ht=110+r()*190,c=cols[Math.floor(r()*cols.length)],y=388-ht;
@@ -409,25 +411,95 @@ function citySvg(){
   for(var wy=y+12;wy<372;wy+=26)for(var wx=x+8;wx<x+w-12;wx+=18)h+='<rect x="'+wx+'" y="'+wy+'" width="9" height="13" rx="2" fill="'+(r()>.35?'rgba(255,255,255,.75)':'rgba(40,90,140,.45)')+'"/>';
   x+=w+2+r()*4}
  h+='<rect x="0" y="366" width="420" height="40" fill="#fff"/>';
+ /* brandmauer building: tall facade on the right, ad painted on the upper wall */
+ var bx=258,by=28,bw=94,bh=338;
+ h+='<g class="ad-svg" data-ad="building" role="button" tabindex="0" aria-label="Реклама">';
+ h+='<path d="M'+(bx+bw)+' '+(by+16)+' L'+(bx+bw+18)+' '+(by+32)+' L'+(bx+bw+18)+' 366 L'+(bx+bw)+' 366Z" fill="#C9842A"/>';
+ h+='<rect x="'+bx+'" y="'+by+'" width="'+bw+'" height="'+bh+'" rx="3" fill="#E8A63C"/>';
+ h+='<path d="M'+(bx-5)+' '+by+' L'+(bx+bw/2)+' '+(by-16)+' L'+(bx+bw+7)+' '+by+'Z" fill="#E4573D"/>';
+ h+='<rect x="'+(bx-3)+'" y="'+by+'" width="'+(bw+8)+'" height="6" fill="#d4922e"/>';
+ for(var wy=by+108;wy<360;wy+=26)for(var wx=bx+12;wx<bx+bw-12;wx+=18)h+='<rect x="'+wx+'" y="'+wy+'" width="9" height="13" rx="2" fill="rgba(255,255,255,.7)"/>';
+ /* plaster brandmauer high on the facade, slight perspective, wall margins around it */
+ var p1x=bx+12,p1y=by+12,p2x=bx+bw-12,p2y=by+16,p3x=bx+bw-12,p3y=by+96,p4x=bx+12,p4y=by+92;
+ h+='<defs><clipPath id="c-bldg"><polygon points="'+p1x+','+p1y+' '+p2x+','+p2y+' '+p3x+','+p3y+' '+p4x+','+p4y+'"/></clipPath></defs>';
+ h+='<polygon class="wall-panel" points="'+p1x+','+p1y+' '+p2x+','+p2y+' '+p3x+','+p3y+' '+p4x+','+p4y+'" fill="#F3E6C0" stroke="#6A4A24" stroke-width="1.5"/>';
+ h+='<g clip-path="url(#c-bldg)">'+adPaint(bb,{x:p1x+2,y:p1y+4,w:p2x-p1x-4,h:p4y-p1y-8,fs:9,chars:12,lines:3,fill:'#4A3518',clip:'c-bldg'})+'</g>';
+ h+='</g>';
  return '<svg class="city" viewBox="0 0 420 400" preserveAspectRatio="xMidYMax meet">'+h+'</svg>'}
 
 var ADS=[
- {slot:'billboard',text:'Здесь может быть ваша реклама',url:'',img:''},
- {slot:'truck',text:'Здесь может быть ваша реклама',url:'',img:''}
+ {slot:'building',text:'Здесь может быть ваша реклама',url:'',img:''},
+ {slot:'truck',text:'Здесь может быть ваша реклама',url:'',img:''},
+ {slot:'balloon',text:'Здесь может быть ваша реклама',url:'',img:''},
+ {slot:'cloud',text:'Здесь может быть ваша реклама',url:'',img:''}
 ];
 var CityAds={};
-function adsOf(slot){return (ADS||[]).filter(function(a){return a&&a.slot===slot&&!a.adult})}
+function adsOf(slot){var want=slot==='building'?['building','billboard']:[slot];return (ADS||[]).filter(function(a){return a&&want.indexOf(a.slot)>-1&&!a.adult})}
 function pickAd(slot){var a=adsOf(slot);return a.length?a[rnd(a.length)]:{slot:slot,text:'Здесь может быть ваша реклама',url:'',img:''}}
 function adSafeUrl(u){try{var x=new URL(u);return x.protocol==='https:'?u:''}catch(e){return ''}}
 function adFace(ad){ad=ad||{};var src=adSafeUrl(ad.img||'');if(src)return '<img alt="" src="'+esc(src)+'">';return '<span>'+esc(ad.text||'Здесь может быть ваша реклама')+'</span>'}
 function adClickable(){return !(P&&!P.over&&!P.paused&&G&&G.phase==='play')}
 function openAd(url){if(!adClickable())return;url=adSafeUrl(url||'');if(url){window.open(url,'_blank','noopener,noreferrer');return}toast('Это место для рекламы')}
-function truckSvg(){return '<svg class="truckic" viewBox="0 0 160 58" aria-hidden="true"><rect x="2" y="16" width="96" height="30" rx="3" fill="#f6f6f6" stroke="#333" stroke-width="2"/><rect x="98" y="22" width="44" height="24" rx="3" fill="#FFB02E" stroke="#333" stroke-width="2"/><rect x="118" y="26" width="16" height="10" rx="2" fill="#9ad8f5"/><circle cx="24" cy="48" r="8" fill="#333"/><circle cx="74" cy="48" r="8" fill="#333"/><circle cx="124" cy="48" r="8" fill="#333"/></svg>'}
+function truckSvg(ad){
+ var box={x:12,y:18,w:196,h:30,fs:8,chars:20,lines:2,fill:'#2c2416',clip:'c-trk'};
+ return '<svg class="truckic" viewBox="0 0 310 86" aria-hidden="true">'+
+  '<defs><clipPath id="c-trk"><rect x="12" y="18" width="196" height="30" rx="1"/></clipPath></defs>'+
+  '<ellipse cx="110" cy="80" rx="108" ry="5" fill="rgba(0,0,0,.12)"/>'+
+  /* trailer */
+  '<rect x="6" y="14" width="208" height="42" rx="3" fill="#F4F0E6" stroke="#2c2c2c" stroke-width="2"/>'+
+  '<rect x="6" y="50" width="208" height="6" fill="#c9c3b4" stroke="#2c2c2c" stroke-width="1.2"/>'+
+  '<rect x="10" y="16" width="200" height="34" rx="1.5" fill="#EFE8D6" stroke="#8a7a58" stroke-width="1"/>'+
+  adPaint(ad,box)+
+  /* cab-over */
+  '<rect x="214" y="8" width="78" height="48" rx="5" fill="#FFB02E" stroke="#2c2c2c" stroke-width="2"/>'+
+  '<rect x="256" y="14" width="30" height="22" rx="3" fill="#9ad8f5" stroke="#2c2c2c" stroke-width="1.4"/>'+
+  '<rect x="220" y="16" width="28" height="16" rx="2" fill="#f3d48a" stroke="#2c2c2c" stroke-width="1.1"/>'+
+  '<rect x="214" y="48" width="78" height="8" fill="#e09a1a" stroke="#2c2c2c" stroke-width="1.2"/>'+
+  '<rect x="288" y="52" width="14" height="5" rx="1" fill="#555"/>'+
+  '<rect x="208" y="12" width="8" height="18" rx="1" fill="#6b6b6b" stroke="#2c2c2c" stroke-width="1"/>'+
+  /* wheels */
+  '<g fill="#2c2c2c"><circle cx="36" cy="66" r="11"/><circle cx="64" cy="66" r="11"/><circle cx="150" cy="66" r="11"/><circle cx="178" cy="66" r="11"/><circle cx="238" cy="66" r="11"/><circle cx="272" cy="66" r="11"/></g>'+
+  '<g fill="#c9c9c9"><circle cx="36" cy="66" r="4.5"/><circle cx="64" cy="66" r="4.5"/><circle cx="150" cy="66" r="4.5"/><circle cx="178" cy="66" r="4.5"/><circle cx="238" cy="66" r="4.5"/><circle cx="272" cy="66" r="4.5"/></g>'+
+  '</svg>'}
+function balloonSvg(ad){
+  var lines=adLines(ad,14,3),src=adSafeUrl(ad&&ad.img||'');
+  var arcs=['M28 52 Q60 44 92 52','M24 68 Q60 58 96 68','M30 84 Q60 76 90 84'];
+  var txt='';
+  if(src) txt='<image href="'+esc(src)+'" x="18" y="14" width="84" height="96" preserveAspectRatio="xMidYMid slice" clip-path="url(#c-bal)"/>';
+  else txt=lines.map(function(t,i){var id='bal-a'+i;return '<path id="'+id+'" d="'+arcs[i]+'" fill="none"/>'+
+    '<text font-size="8.5" font-weight="800" fill="#3d2a14" font-family="-apple-system,system-ui,sans-serif"><textPath href="#'+id+'" startOffset="50%" text-anchor="middle">'+esc(t)+'</textPath></text>'}).join('');
+  return '<svg class="balic" viewBox="0 0 120 172" aria-hidden="true">'+
+    '<defs><clipPath id="c-bal"><ellipse cx="60" cy="62" rx="48" ry="54"/></clipPath></defs>'+
+    '<ellipse cx="60" cy="166" rx="16" ry="3" fill="rgba(0,0,0,.12)"/>'+
+    '<path d="M42 114 L50 148 L70 148 L78 114" stroke="#6a4a2b" stroke-width="1.4" fill="none"/>'+
+    '<ellipse cx="60" cy="62" rx="50" ry="56" fill="#E8897A" stroke="#5a3a32" stroke-width="2"/>'+
+    '<ellipse cx="60" cy="62" rx="42" ry="48" fill="#F0A090"/>'+
+    '<path d="M28 40 Q60 18 92 40" fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="6" stroke-linecap="round"/>'+
+    '<g clip-path="url(#c-bal)">'+txt+'</g>'+
+    '<rect x="46" y="146" width="28" height="16" rx="2" fill="#C4A06A" stroke="#5a3a32" stroke-width="1.4"/>'+
+    '</svg>'}
+function cloudSvg(ad){
+  var box={x:48,y:58,w:160,h:28,fs:8,chars:22,lines:2,fill:'#3d2a14',clip:'c-cld'};
+  return '<svg class="cloudic" viewBox="0 0 230 110" aria-hidden="true">'+
+    '<defs><clipPath id="c-cld"><path d="M46 58 Q70 52 120 54 Q170 52 208 60 L206 86 Q120 90 48 84Z"/></clipPath></defs>'+
+    /* banner behind the cloud */
+    '<path d="M46 58 Q70 52 120 54 Q170 52 208 60 L210 86 Q120 92 44 84Z" fill="#F3E6B3" stroke="#7A5A28" stroke-width="1.6"/>'+
+    '<path d="M54 62 Q120 58 200 66" fill="none" stroke="#c4a86a" stroke-width=".8" stroke-dasharray="3 3"/>'+
+    adPaint(ad,box)+
+    /* cloud puffs in front, covering the banner's left */
+    '<g fill="#fff" stroke="#c9d6e0" stroke-width="1.2">'+
+    '<ellipse cx="70" cy="40" rx="38" ry="20"/>'+
+    '<ellipse cx="104" cy="32" rx="34" ry="22"/>'+
+    '<ellipse cx="140" cy="40" rx="30" ry="18"/>'+
+    '<ellipse cx="44" cy="46" rx="22" ry="14"/>'+
+    '</g></svg>'}
 function cityScene(mute){
- var bb=pickAd('billboard'),tr=pickAd('truck');CityAds={billboard:bb,truck:tr};
- return '<div class="citywrap'+(mute?' mute':'')+'">'+citySvg()+
-  '<button type="button" class="adhot ad-bb" data-ad="billboard" aria-label="Реклама">'+adFace(bb)+'</button>'+
-  '<div class="ad-truck-track"><button type="button" class="adhot ad-truck" data-ad="truck" aria-label="Реклама">'+truckSvg()+'<span class="ad-side">'+adFace(tr)+'</span></button></div></div>'}
+ var bb=pickAd('building'),tr=pickAd('truck'),ba=pickAd('balloon'),cl=pickAd('cloud');
+ CityAds={building:bb,billboard:bb,truck:tr,balloon:ba,cloud:cl};
+ return '<div class="citywrap'+(mute?' mute':'')+'">'+citySvg(bb)+
+  '<button type="button" class="adhot ad-balloon" data-ad="balloon" aria-label="Реклама">'+balloonSvg(ba)+'</button>'+
+  '<button type="button" class="adhot ad-cloud" data-ad="cloud" aria-label="Реклама">'+cloudSvg(cl)+'</button>'+
+  '<div class="ad-truck-track"><button type="button" class="adhot ad-truck" data-ad="truck" aria-label="Реклама">'+truckSvg(tr)+'</button></div></div>'}
 function bindAds(){
  syncAdsHot();
  $$('[data-ad]',app).forEach(function(el){el.onclick=function(ev){ev.preventDefault();ev.stopPropagation();if(!adClickable())return;var ad=CityAds[el.getAttribute('data-ad')]||{};openAd(ad.url)}})}
@@ -490,8 +562,7 @@ function speakResults(){
 function showPremiumSoon(){
  screen(hdr('Скоро · Премиум','settings')+'<div class="body prem"><div class="crown">👑</div><h2>Голосовой ведущий</h2><p>Платная функция. Ведущий объявляет ход, оставшееся время и очки. Если браузер умеет распознавание речи, работают команды «угадали», «пропуск» и «дальше». На iPhone может быть только озвучка.</p><p>Оплата появится позже. Сейчас платежей нет.</p><button type="button" class="obtn sm" data-act="premdemo">Для теста на этом устройстве</button></div>','premium')}
 
-function skySvg(){return '<svg class="sky" viewBox="0 0 400 800" preserveAspectRatio="xMidYMid slice"><g fill="#fff" opacity=".85"><ellipse cx="70" cy="330" rx="46" ry="16"/><ellipse cx="98" cy="318" rx="30" ry="18"/><ellipse cx="330" cy="260" rx="52" ry="17"/><ellipse cx="300" cy="248" rx="30" ry="17"/><ellipse cx="350" cy="430" rx="40" ry="13"/><ellipse cx="46" cy="500" rx="38" ry="12"/></g>'+
- '<g transform="translate(335 430)"><ellipse cx="0" cy="0" rx="17" ry="21" fill="#FF6B6B"/><path d="M-17 0 Q0 -14 17 0" fill="#FFD93D" opacity=".9"/><path d="M-6 20 L-4 34 L4 34 L6 20Z" fill="#8a5a2b"/></g></svg>'}
+function skySvg(){return '<svg class="sky" viewBox="0 0 400 800" preserveAspectRatio="xMidYMid slice"><g fill="#fff" opacity=".85"><ellipse cx="70" cy="330" rx="46" ry="16"/><ellipse cx="98" cy="318" rx="30" ry="18"/><ellipse cx="330" cy="200" rx="52" ry="17"/><ellipse cx="300" cy="188" rx="30" ry="17"/><ellipse cx="46" cy="500" rx="38" ry="12"/></g></svg>'}
 function logoSvg(sz){return '<svg viewBox="0 0 230 170" width="'+(sz||210)+'"><defs><linearGradient id="lg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFB93A"/><stop offset="1" stop-color="#FB8E12"/></linearGradient></defs>'+
  '<path d="M30 6 H200 Q224 6 224 30 V100 Q224 124 200 124 H110 L66 160 L72 124 H30 Q6 124 6 100 V30 Q6 6 30 6Z" fill="url(#lg)"/>'+
  '<text x="115" y="88" text-anchor="middle" font-family="-apple-system,SF Pro Rounded,Arial Rounded MT Bold,Helvetica,Arial,sans-serif" font-weight="900" font-size="62" fill="#fff" letter-spacing="-1">элиас</text>'+
