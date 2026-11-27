@@ -23,7 +23,7 @@ var DECKS=[
  {id:'passion',name:'18+ Страсть',diff:'Для взрослых · возбуждающие слова',cls:'dk-adult dk-passion',adult:true,badge:'18+',red:true},
  {id:'bdsm',name:'18+ БДСМ',diff:'Для взрослых · простые слова',cls:'dk-adult dk-bdsm',adult:true,badge:'18+',red:true},
  {id:'hints',name:'18+ Намёки',diff:'Для взрослых · двусмысленные слова и пары',cls:'dk-adult dk-hints',adult:true,badge:'18+',red:true},
- {id:'hits',name:'18+ Пошлые хиты',diff:'Для взрослых · названия песен и припевы',cls:'dk-adult dk-hits',adult:true,badge:'18+',red:true}
+ {id:'hits',name:'18+ Пошлые хиты',diff:'Для взрослых · короткие строки припевов',cls:'dk-adult dk-hits',adult:true,badge:'18+',red:true}
 ];
 var PL_NAMES=['Саша','Маша','Дима','Аня','Макс','Лена','Игорь','Катя','Олег','Юля','Тимур','Вика'];
 var TM_NAMES=['Ураганы','Искры','Пузырьки','Вулканы','Лисы','Кометы','Ниндзя','Совы','Тигры','Орбита','Фейерверк','Бумеранг'];
@@ -193,11 +193,41 @@ function sexKey(){return prefs.mode==='team'?'teamSex':prefs.mode==='pair'?'pair
 function sexes(){var k=sexKey();if(!prefs[k])prefs[k]=[];var n=names().length;while(prefs[k].length<n)prefs[k].push(prefs[k].length%2?'f':'m');if(prefs[k].length>n)prefs[k]=prefs[k].slice(0,n);return prefs[k]}
 /* Бесплатный Supabase: подставь URL проекта и anon-ключ, чтобы включить общий рейтинг.
    service_role сюда не класть. Пока пусто — вкладка «Топ» показывает заглушку. */
-var APP_VER='6.0';
+var APP_VER='7.0';
 var SUPABASE={url:'https://zzuyvlzraykibovxsfvc.supabase.co',anon:'sb_publishable_YIMP4FCnDx2cXFbqEz9sdA_E0NuRKpp'};
 function sbOn(){return !!(SUPABASE&&SUPABASE.url&&SUPABASE.anon)}
 function sbHeads(){return {'apikey':SUPABASE.anon,'Authorization':'Bearer '+SUPABASE.anon,'Content-Type':'application/json','Prefer':'return=representation'}}
 function deviceId(){var id=ld('elias.device','');if(!id||typeof id!=='string'){id='d'+Math.random().toString(36).slice(2)+Date.now().toString(36);sv('elias.device',id)}return id}
+function sugQ(){var q=ld('elias.sugq',[]);return Array.isArray(q)?q:[]}
+function saveSugQ(q){sv('elias.sugq',q)}
+function sugLimit(body,contact){body=(body||'').trim().replace(/\s+/g,' ');contact=(contact||'').trim();if(body.length<4)return 'Напиши чуть подробнее (от 4 символов)';if(body.length>500)return 'Текст — до 500 символов';if(contact.length>80)return 'Контакт — до 80 символов';return ''}
+function sugSpam(){var log=ld('elias.suglog',[]);if(!Array.isArray(log))log=[];var day=Date.now()-86400000;log=log.filter(function(x){return x>day});sv('elias.suglog',log);if(log.length>=5)return 'Лимит: 5 предложений в сутки с этого устройства';if(log.length&&Date.now()-log[log.length-1]<30000)return 'Подожди полминуты перед следующим';return ''}
+function markSugSent(){var log=ld('elias.suglog',[]);if(!Array.isArray(log))log=[];log.push(Date.now());sv('elias.suglog',log)}
+function sendSuggestion(body,contact,cb){
+ var err=sugLimit(body,contact)||sugSpam();if(err){toast(err);if(cb)cb(false);return}
+ body=body.trim().replace(/\s+/g,' ');contact=(contact||'').trim();
+ var item={body:body,contact:contact,t:Date.now(),dev:deviceId()};
+ function queued(msg){var q=sugQ();q.push(item);saveSugQ(q);toast(msg||'Сохранил на этом телефоне, отправлю, когда появится связь');if(cb)cb(true)}
+ if(!sbOn()){queued();return}
+ sbRpc('add_suggestion',{p_body:body,p_contact:contact,p_dev:deviceId()}).then(function(s){
+  if(s==='ok'){markSugSent();toast('Спасибо, отправили');if(cb)cb(true)}
+  else if(s==='limit'){toast('Лимит: 5 предложений в сутки');if(cb)cb(false)}
+  else{toast('Не приняли текст, проверь длину');if(cb)cb(false)}
+ }).catch(function(){queued('Нет связи с базой — сохранил на телефоне и отправлю позже')})
+}
+function flushSugQ(){
+ if(!sbOn())return;var q=sugQ();if(!q.length)return;var left=[],i=0;
+ function next(){if(i>=q.length){saveSugQ(left);return}var it=q[i++];
+  sbRpc('add_suggestion',{p_body:it.body,p_contact:it.contact||'',p_dev:it.dev||deviceId()}).then(function(s){
+   if(s==='ok')markSugSent();else if(s!=='limit')left.push(it);next()
+  }).catch(function(){left.push(it);left=left.concat(q.slice(i));saveSugQ(left)})}
+ next();
+}
+function showSuggest(){
+ modal('<h3>Предложить улучшение</h3><p>Напиши, что улучшить в игре. Имя или контакт — по желанию.</p><textarea class="tx" id="sgb" maxlength="500" placeholder="Идея или замечание"></textarea><input class="tx" id="sgc" placeholder="Имя или контакт (необязательно)" maxlength="80"><button class="opt" data-ok>Отправить</button><button class="opt gy" data-no>Отмена</button>');
+ $('[data-no]',ov).onclick=closeOv;
+ $('[data-ok]',ov).onclick=function(){var body=$('#sgb').value,contact=$('#sgc').value;sendSuggestion(body,contact,function(ok){if(ok)closeOv()})}
+}
 var likedPl=ld('elias.likes',[]);if(!Array.isArray(likedPl))likedPl=[];
 function saveLikes(){sv('elias.likes',likedPl)}
 function plLimit(nm,u){nm=(nm||'').trim();u=(u||'').trim();if(nm.length<1||nm.length>60)return 'Название — от 1 до 60 символов';if(u.length<12||u.length>500)return 'Ссылка слишком короткая или длинная';if(!plHost(u))return 'Нужна ссылка Apple Music, Яндекс Музыки или ВК';return ''}
@@ -380,6 +410,86 @@ function citySvg(){
   x+=w+2+r()*4}
  h+='<rect x="0" y="366" width="420" height="40" fill="#fff"/>';
  return '<svg class="city" viewBox="0 0 420 400" preserveAspectRatio="xMidYMax meet">'+h+'</svg>'}
+
+var ADS=[
+ {slot:'billboard',text:'Здесь может быть ваша реклама',url:'',img:''},
+ {slot:'truck',text:'Здесь может быть ваша реклама',url:'',img:''}
+];
+var CityAds={};
+function adsOf(slot){return (ADS||[]).filter(function(a){return a&&a.slot===slot&&!a.adult})}
+function pickAd(slot){var a=adsOf(slot);return a.length?a[rnd(a.length)]:{slot:slot,text:'Здесь может быть ваша реклама',url:'',img:''}}
+function adSafeUrl(u){try{var x=new URL(u);return x.protocol==='https:'?u:''}catch(e){return ''}}
+function adFace(ad){ad=ad||{};var src=adSafeUrl(ad.img||'');if(src)return '<img alt="" src="'+esc(src)+'">';return '<span>'+esc(ad.text||'Здесь может быть ваша реклама')+'</span>'}
+function adClickable(){return !(P&&!P.over&&!P.paused&&G&&G.phase==='play')}
+function openAd(url){if(!adClickable())return;url=adSafeUrl(url||'');if(url){window.open(url,'_blank','noopener,noreferrer');return}toast('Это место для рекламы')}
+function truckSvg(){return '<svg class="truckic" viewBox="0 0 160 58" aria-hidden="true"><rect x="2" y="16" width="96" height="30" rx="3" fill="#f6f6f6" stroke="#333" stroke-width="2"/><rect x="98" y="22" width="44" height="24" rx="3" fill="#FFB02E" stroke="#333" stroke-width="2"/><rect x="118" y="26" width="16" height="10" rx="2" fill="#9ad8f5"/><circle cx="24" cy="48" r="8" fill="#333"/><circle cx="74" cy="48" r="8" fill="#333"/><circle cx="124" cy="48" r="8" fill="#333"/></svg>'}
+function cityScene(mute){
+ var bb=pickAd('billboard'),tr=pickAd('truck');CityAds={billboard:bb,truck:tr};
+ return '<div class="citywrap'+(mute?' mute':'')+'">'+citySvg()+
+  '<button type="button" class="adhot ad-bb" data-ad="billboard" aria-label="Реклама">'+adFace(bb)+'</button>'+
+  '<div class="ad-truck-track"><button type="button" class="adhot ad-truck" data-ad="truck" aria-label="Реклама">'+truckSvg()+'<span class="ad-side">'+adFace(tr)+'</span></button></div></div>'}
+function bindAds(){
+ syncAdsHot();
+ $$('[data-ad]',app).forEach(function(el){el.onclick=function(ev){ev.preventDefault();ev.stopPropagation();if(!adClickable())return;var ad=CityAds[el.getAttribute('data-ad')]||{};openAd(ad.url)}})}
+function syncAdsHot(){if(app)app.classList.toggle('ads-off',!adClickable())}
+
+function isPremium(){return ld('elias.premium',false)===true}
+function voiceOn(){return !!(prefs.voice&&isPremium()&&window.speechSynthesis)}
+var VoiceRec=null,VoiceLock=0;
+function stopVoice(){
+ try{if(window.speechSynthesis)speechSynthesis.cancel()}catch(e){}
+ stopListen();
+}
+function speak(text){
+ if(!voiceOn()||!text)return;
+ try{
+  speechSynthesis.cancel();
+  var u=new SpeechSynthesisUtterance(String(text));u.lang='ru-RU';u.rate=1;u.pitch=1;
+  var vs=speechSynthesis.getVoices()||[],ru=null,i;
+  for(i=0;i<vs.length;i++)if(/^ru/i.test(vs[i].lang)){ru=vs[i];break}
+  if(ru)u.voice=ru;
+  speechSynthesis.speak(u);
+ }catch(e){}
+}
+function stopListen(){if(!VoiceRec)return;try{VoiceRec.onend=null;VoiceRec.onerror=null;VoiceRec.onresult=null;VoiceRec.stop()}catch(e){}VoiceRec=null}
+function startListen(){
+ stopListen();
+ if(!voiceOn())return;
+ var Rec=window.SpeechRecognition||window.webkitSpeechRecognition;
+ if(typeof Rec!=='function')return;
+ try{
+  var rec=new Rec();VoiceRec=rec;rec.lang='ru-RU';rec.continuous=true;rec.interimResults=true;
+  rec.onresult=function(ev){var i,tx='';for(i=ev.resultIndex;i<ev.results.length;i++)tx+=' '+(ev.results[i][0]&&ev.results[i][0].transcript||'');voiceCommand(tx)};
+  rec.onerror=function(){};
+  rec.onend=function(){if(VoiceRec===rec){VoiceRec=null;if(voiceOn()&&((P&&!P.over)||(G&&(G.phase==='ready'||G.phase==='results'))))setTimeout(startListen,400)}}
+  rec.start();
+ }catch(e){VoiceRec=null}
+}
+function voiceCommand(raw){
+ var t=(' '+String(raw||'').toLowerCase().replace(/ё/g,'е')+' ');
+ var now=Date.now();if(now<VoiceLock)return;
+ function go(fn){VoiceLock=now+1200;try{fn()}catch(e){}}
+ if(/ угадал[аи]? | плюс | да | взяли /.test(t)){
+  if(P&&!P.over&&!P.paused&&!P.sheet&&!P.busy)return go(function(){btnFling(-1)});
+ }
+ if(/ пропуск | пропусти | минус | нет /.test(t)){
+  if(P&&!P.over&&!P.paused&&!P.sheet&&!P.busy)return go(function(){btnFling(1)});
+ }
+ if(/ дальше | старт | начали | поехали | следующий /.test(t)){
+  if(G&&G.phase==='ready'&&!P)return go(showPlay);
+  if(G&&G.phase==='results'&&P&&P.over)return go(commit);
+ }
+}
+function speakTurn(){if(!G)return;var e=curE();speak((isSolo()?'Ход. Объясняет ':'Ход команды ')+G.names[e]+'.')}
+function speakResults(){
+ if(!P||!G)return;
+ var items=P.items,d=turnDelta(items),g=items.filter(function(i){return i.st==='g'}).length,s=items.filter(function(i){return i.st==='s'||i.st==='f'}).length;
+ var pts=d>=0?('плюс '+d):('минус '+(-d));
+ speak('Итог хода. Угадано '+g+', пропущено '+s+'. '+pts+' '+(isSolo()?'объясняющему.':'команде.'));
+}
+function showPremiumSoon(){
+ screen(hdr('Скоро · Премиум','settings')+'<div class="body prem"><div class="crown">👑</div><h2>Голосовой ведущий</h2><p>Платная функция. Ведущий объявляет ход, оставшееся время и очки. Если браузер умеет распознавание речи, работают команды «угадали», «пропуск» и «дальше». На iPhone может быть только озвучка.</p><p>Оплата появится позже. Сейчас платежей нет.</p><button type="button" class="obtn sm" data-act="premdemo">Для теста на этом устройстве</button></div>','premium')}
+
 function skySvg(){return '<svg class="sky" viewBox="0 0 400 800" preserveAspectRatio="xMidYMid slice"><g fill="#fff" opacity=".85"><ellipse cx="70" cy="330" rx="46" ry="16"/><ellipse cx="98" cy="318" rx="30" ry="18"/><ellipse cx="330" cy="260" rx="52" ry="17"/><ellipse cx="300" cy="248" rx="30" ry="17"/><ellipse cx="350" cy="430" rx="40" ry="13"/><ellipse cx="46" cy="500" rx="38" ry="12"/></g>'+
  '<g transform="translate(335 430)"><ellipse cx="0" cy="0" rx="17" ry="21" fill="#FF6B6B"/><path d="M-17 0 Q0 -14 17 0" fill="#FFD93D" opacity=".9"/><path d="M-6 20 L-4 34 L4 34 L6 20Z" fill="#8a5a2b"/></g></svg>'}
 function logoSvg(sz){return '<svg viewBox="0 0 230 170" width="'+(sz||210)+'"><defs><linearGradient id="lg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFB93A"/><stop offset="1" stop-color="#FB8E12"/></linearGradient></defs>'+
@@ -389,11 +499,11 @@ function logoSvg(sz){return '<svg viewBox="0 0 230 170" width="'+(sz||210)+'"><d
 
 function isStandalone(){return window.navigator.standalone===true||(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)}
 function showMenu(){
- closeOv();
+ closeOv();stopVoice();
  var ios=/iphone|ipad|ipod/i.test(navigator.userAgent),inst='';
  if(ios&&!isStandalone()&&!prefs.installHide)inst='<div class="install"><b>Поставь на экран:</b> нажми «Поделиться» <span>⬆︎</span> → «На экран “Домой”». Игра будет работать офлайн.<button class="x" data-act="hideinst">×</button></div>';
- screen(skySvg()+citySvg()+inst+'<div class="logo">'+logoSvg()+'</div><div class="tag">игра в слова для компании</div>'+
- '<div class="btns">'+(G?'<button class="obtn" data-act="continue">Продолжить</button>':'')+'<button class="obtn" data-act="new">Новая игра</button><button class="obtn" data-act="how">Как играть</button><button class="obtn cy sm" data-act="music">Музыка вкл/выкл</button></div>','menu')}
+ screen(skySvg()+cityScene(false)+inst+'<div class="logo">'+logoSvg()+'</div><div class="tag">игра в слова для компании</div>'+
+ '<div class="btns">'+(G?'<button class="obtn" data-act="continue">Продолжить</button>':'')+'<button class="obtn" data-act="new">Новая игра</button><button class="obtn" data-act="how">Как играть</button><button class="obtn cy sm" data-act="music">Музыка вкл/выкл</button><button class="obtn sm" data-act="suggest">Предложить улучшение</button></div>','menu');bindAds()}
 
 function showHow(){
  screen(hdr('Как играть','menu')+'<div class="body"><div class="how">'+
@@ -441,6 +551,7 @@ function showSettings(){
  tg('draw','Задания: рисунок','на части карточек — нарисовать слово')+
  '<div class="set"><div class="l1"><div><div class="t">Спасения</div><div class="s">пропуски без штрафа за игру (на '+(solo?'игрока':'команду')+')</div></div><div class="stp">'+[0,1,2].map(function(n){return '<button data-sv="'+n+'" class="'+(prefs.saves===n?'on':'')+'">'+n+'</button>'}).join('')+'</div></div></div>'+
  tg('sound','Звук','сигналы таймера')+
+ tg('voice','Голосовой ведущий 👑','объявляет ход, время и очки. Платная функция')+
  tg('punish','Наказание','18+: проигравший тянет карточку-действие. Только по согласию')+
  punishExtra+
  '<div class="set"><div class="l1"><div><div class="t">Музыка</div><div class="s">плейлисты во внешних приложениях, без встроенных треков</div></div><button class="optb" data-act="music">Вкл/выкл</button></div></div>'+
@@ -497,14 +608,14 @@ function chipsHtml(){var s=G.set,c=['<span class="chip b">⏱ '+(s.blitz?30:s.ti
  if(s.gest)c.push('<span class="chip">🤐 жесты</span>');if(s.draw)c.push('<span class="chip">✏️ рисунок</span>');if(s.punish)c.push('<span class="chip r">🌶 наказание</span>');if(s.tod)c.push('<span class="chip r">правда/действие</span>');if(s.alcohol)c.push('<span class="chip r">алкоголь</span>');if(s.pairEscalate)c.push('<span class="chip r">пара 🌶+</span>');
  return c.join('')}
 function showReady(){
- closeOv();G.phase='ready';saveG();
+ closeOv();stopListen();G.phase='ready';saveG();
  var e=curE(),cs=calc(G.logs),left=G.set.saves-cs.used[e];
  var info=isSolo()?(G.set.markWho?'Остальные угадывают все сразу. Кто угадал первым: +1 ему и +1 тебе. Пропуск −1 тебе.':'Остальные угадывают все сразу. Угадали — +1 тебе. Пропуск −1 тебе.'):'Объясняет игрок команды, остальные угадывают.';
  if(!G.set.penalty)info=info.replace(/ Пропуск −1 тебе\./,' Пропуск без штрафа.').replace('Объясняет игрок команды, остальные угадывают.','Объясняет игрок команды, остальные угадывают. Пропуск без штрафа.');
  if(G.set.penalty&&G.set.saves>0)info+=' Спасений осталось: '+Math.max(0,left)+'.';
- screen('<div class="top"><button data-act="menu">‹ Меню</button><button data-act="board">Табло</button></div>'+
+ screen(cityScene(true)+'<div class="top"><button data-act="menu">‹ Меню</button><button data-act="board">Табло</button></div>'+
  '<div class="rcard"><div class="lab">'+(isSolo()?'Объясняет':'Ход команды')+'</div><div class="who">'+esc(G.names[e])+'</div><div class="info">'+info+'</div><div class="chips">'+chipsHtml()+'</div></div>'+
- '<div class="bot"><button class="obtn" data-act="go">Старт</button></div>','ready')}
+ '<div class="bot"><button class="obtn" data-act="go">Старт</button></div>','ready');bindAds();speakTurn();startListen()}
 
 /* play */
 var P=null;
@@ -513,12 +624,12 @@ function showPlay(){
  if(G.pendingFx){G.activeFx=G.pendingFx;G.pendingFx=null}else G.activeFx=null;
  var e=curE(),dur=G.set.blitz?30:G.set.time;
  P={items:[],dur:dur,rem:dur*1000,end:0,paused:false,iv:null,card:newCard(),busy:false,lastBeep:99,sheet:false};
- screen('<div class="ptop"><button class="pa" data-act="pause" aria-label="Пауза"><i></i><i></i></button><div class="pt" id="tm">'+dur+'</div><div class="ps">очки хода<b id="pd">0</b></div></div>'+
+ screen(cityScene(true)+'<div class="ptop"><button class="pa" data-act="pause" aria-label="Пауза"><i></i><i></i></button><div class="pt" id="tm">'+dur+'</div><div class="ps">очки хода<b id="pd">0</b></div></div>'+
  '<div class="pwho">'+esc(G.names[e])+(G.set.penalty&&G.set.saves>0?' · спасений: <span id="svl"></span>':'')+'</div><div class="pbar"><i id="pb"></i></div>'+
  '<div class="arena"><div class="hintup">УГАДАЛИ</div><div class="hintdn">ПРОПУСК</div><div id="cardhold" style="width:100%;display:flex;justify-content:center"></div></div>'+
  '<div class="pact"><button class="no" data-act="skip" aria-label="Пропуск">✕</button><button class="yes" data-act="ok" aria-label="Угадали">✓</button></div>','play');
- mountCard();updPlay();
- P.end=Date.now()+P.rem;P.iv=setInterval(tick,100);beep(660,.12)}
+ mountCard();updPlay();bindAds();
+ P.end=Date.now()+P.rem;P.iv=setInterval(tick,100);beep(660,.12);speakTurn();startListen()}
 function usedNow(){var e=curE();return calc(G.logs).used[e]+P.items.filter(function(i){return i.st==='f'}).length}
 function updPlay(){
  var d=$('#pd');if(d)d.textContent=(turnDelta(P.items)>0?'+':'')+turnDelta(P.items);
@@ -570,18 +681,20 @@ function tick(){
  var t=$('#tm');if(t){t.textContent=s;t.classList.toggle('low',s<=5&&s>0)}
  var pb=$('#pb');if(pb)pb.style.width=Math.max(0,rem/(P.dur*1000)*100)+'%';
  if(s<=5&&s>0&&s!==P.lastBeep){P.lastBeep=s;beep(520,.1)}
+ if(voiceOn()&&(s===30||s===10||s===5)&&P.voiceAt!==s&&!(s===30&&P.dur<=30)){P.voiceAt=s;speak('Осталось '+s+' секунд')}
  if(rem<=0)timeUp()}
 function stopTimer(){if(P&&P.iv){clearInterval(P.iv);P.iv=null}}
 function timeUp(){
- stopTimer();P.over=true;P.sheet=false;closeOv();beep(220,.7,.2);
+ stopTimer();P.over=true;P.sheet=false;closeOv();stopListen();beep(220,.7,.2);speak('Время вышло.');syncAdsHot();
  var el=$('#wc');if(el)el.style.transform='';
  if(G.set.lastAll)showLast();else showResults()}
 function pauseGame(){
- if(!P||P.paused||P.over)return;P.paused=true;P.rem=Math.max(0,P.end-Date.now());
+ if(!P||P.paused||P.over)return;P.paused=true;P.rem=Math.max(0,P.end-Date.now());stopListen();try{if(window.speechSynthesis)speechSynthesis.cancel()}catch(e){}
+ syncAdsHot();
  modal('<h3>Пауза</h3><p>Таймер остановлен.</p><button class="opt" data-r>Продолжить</button><button class="opt gy" data-e>Закончить ход</button><button class="opt gy" data-m>Выйти в меню</button>',false);
- $('[data-r]',ov).onclick=function(){closeOv();P.paused=false;P.end=Date.now()+P.rem};
+ $('[data-r]',ov).onclick=function(){closeOv();P.paused=false;P.end=Date.now()+P.rem;syncAdsHot();startListen()};
  $('[data-e]',ov).onclick=function(){closeOv();stopTimer();P.over=true;showResults()};
- $('[data-m]',ov).onclick=function(){closeOv();stopTimer();P=null;showMenu()}}
+ $('[data-m]',ov).onclick=function(){closeOv();stopTimer();stopVoice();P=null;showMenu()}}
 document.addEventListener('visibilitychange',function(){if(document.hidden&&P&&!P.over&&!P.paused&&$('#tm'))pauseGame()});
 
 function showLast(){
@@ -598,7 +711,7 @@ function showLast(){
 
 function icon(it){return it.st==='g'?'<span class="ic g">✓</span>':it.st==='s'?'<span class="ic s">✕</span>':it.st==='f'?'<span class="ic f">✕</span>':'<span class="ic n">–</span>'}
 function showResults(){
- closeOv();G.phase='results';var items=P.items,e=curE(),d=turnDelta(items),v=unit(G.set);
+ closeOv();stopListen();G.phase='results';var items=P.items,e=curE(),d=turnDelta(items),v=unit(G.set);
  var g=items.filter(function(i){return i.st==='g'}).length,s=items.filter(function(i){return i.st==='s'||i.st==='f'}).length;
  var rows=items.map(function(it,i){
   var sub=it.st==='g'?(isSolo()&&G.set.markWho&&it.by!=null?'угадал(а): '+esc(G.names[it.by]):(!isSolo()&&it.by!=null&&it.by!==e?'забрала: '+esc(G.names[it.by]):'')):it.st==='f'?'спасение, без штрафа':it.st==='n'?'не засчитано':'';
@@ -606,7 +719,7 @@ function showResults(){
   return '<button class="rs" data-i="'+i+'"><div class="w">'+wordLine(it.w)+(it.last?' <small>последнее слово</small>':'')+(sub?'<small>'+sub+'</small>':'')+'</div><div class="pt">'+pt+'</div>'+icon(it)+'</button>'}).join('');
  screen(hdr('Итоги хода','menu',esc(G.names[e]))+'<div class="sum"><div><b class="p" id="sg">'+g+'</b>угадано</div><div><b class="m" id="ss">'+s+'</b>пропущено</div><div><b id="sd">'+(d>0?'+':'')+d+'</b>очки '+(isSolo()?'объясняющего':'команды')+'</div></div>'+
  '<div class="body" style="padding:0">'+(rows||'<div class="hint">Слов не было</div>')+'<div class="hint">Нажми на слово, чтобы поправить отметку.</div></div><button class="next" data-act="commit">Далее</button>');
- var bk=$('.hdr .back');if(bk)bk.style.visibility='hidden'}
+ var bk=$('.hdr .back');if(bk)bk.style.visibility='hidden';speakResults();startListen()}
 function editItem(i){
  var it=P.items[i],e=curE(),o='';
  if(isSolo()&&G.set.markWho){G.names.forEach(function(n,k){if(k!==e)o+='<button class="opt b" data-st="g" data-by="'+k+'">Угадал(а): '+esc(n)+'</button>'})}
@@ -617,7 +730,7 @@ function editItem(i){
  $$('[data-st]',ov).forEach(function(b){b.onclick=function(){var st=b.getAttribute('data-st'),by=b.getAttribute('data-by');
   it.st=st;if(st==='g')it.by=+by;else delete it.by;closeOv();showResults()}})}
 function commit(){
- stopDot();G.activeFx=null;
+ stopListen();stopDot();G.activeFx=null;
  G.logs.push({e:curE(),items:P.items});P=null;var cs=calc(G.logs),sc=cs.sc,n=sc.length,mx=Math.max.apply(null,sc),T=target();
  var top=sc.filter(function(x){return x===mx}).length;
  var roundDone=(G.turnNo+1)%n===0;
@@ -669,7 +782,9 @@ document.addEventListener('click',function(ev){
  if(t.hasAttribute('data-deldare')){var di=+t.getAttribute('data-deldare');myDares.splice(di,1);saveMyDares();showSettings();return}
  if(t.hasAttribute('data-del')&&t.closest('.row')){if(prefs.mode==='pair')return;var l=names();if(l.length<=2){toast('Нужно минимум два '+(prefs.mode==='team'?'команды':'игрока'));return}var di=+t.getAttribute('data-del');l.splice(di,1);sexes();var sk=sexKey();if(prefs[sk])prefs[sk].splice(di,1);savePrefs();return showPlayers()}
  if(t.hasAttribute('data-tg')){var k=t.getAttribute('data-tg');
+  if(k==='voice'&&!prefs.voice&&!isPremium()){showPremiumSoon();return}
   if((k==='punish'||k==='tod'||k==='alcohol')&&!prefs[k]&&!prefs.adultOk){askAdult(function(){prefs[k]=true;if(k==='tod'||k==='alcohol')prefs.punish=true;savePrefs();var scx=$('.body')&&$('.body').scrollTop;showSettings();if($('.body'))$('.body').scrollTop=scx});return}
+  if(k==='voice'&&prefs.voice)stopVoice();
   prefs[k]=!prefs[k];if((k==='tod'||k==='alcohol')&&prefs[k])prefs.punish=true;savePrefs();var sc=$('.body').scrollTop;showSettings();$('.body').scrollTop=sc;return}
  if(t.hasAttribute('data-sv')){prefs.saves=+t.getAttribute('data-sv');savePrefs();var s2=$('.body').scrollTop;showSettings();$('.body').scrollTop=s2;return}
  if(t.hasAttribute('data-dk')){var id2=t.getAttribute('data-dk'),i=prefs.decks.indexOf(id2);
@@ -683,6 +798,8 @@ document.addEventListener('click',function(ev){
   case 'new':return showPlayers();
   case 'how':return showHow();
   case 'music':musicPanel();return;
+case 'suggest':showSuggest();return;
+  case 'premdemo':sv('elias.premium',true);prefs.voice=true;savePrefs();toast('Премиум включён для теста');return showSettings();
   case 'mtab-list':musicTab='list';musicPanel();return;
   case 'mtab-top':musicTab='top';musicPanel();return;
   case 'addpl':addPlModal();return;
@@ -722,7 +839,7 @@ document.addEventListener('dblclick',function(ev){var t=ev.target;if(t.classList
 document.addEventListener('contextmenu',function(e){e.preventDefault()});
 var st=document.createElement('style');st.textContent='@keyframes cardin{from{transform:translateY(40px) scale(.94);opacity:0}to{transform:none;opacity:1}}';document.head.appendChild(st);
 
-showMenu();
+showMenu();flushSugQ();
 if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'||location.hostname==='127.0.0.1')){
  var __re=false,__had=!!navigator.serviceWorker.controller;
  navigator.serviceWorker.addEventListener('controllerchange',function(){if(__re||!__had)return;__re=true;location.reload()});
