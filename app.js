@@ -329,7 +329,7 @@ function isTouchDare(d){
 var STROKE_PLACES=['голым плечам','голой спине','голой шее','голому животу','голому бедру','голому предплечью','голой талии','голым ключицам'];
 function concretizeDare(d){
  if(!d)return d;d=Object.assign({},d);
- if(d.kind==='stroke'){d.t='Погладить партнёра по '+pick(STROKE_PLACES)+' '+(3+rnd(8))+' раз';d.touch=1;d.opp=1}
+ if(d.kind==='stroke'){var n=3+rnd(8),raz=(n%10===1&&n%100!==11)?'раз':(n%10>=2&&n%10<=4&&(n%100<10||n%100>=20))?'раза':'раз';d.t='Погладить партнёра по '+pick(STROKE_PLACES)+' '+n+' '+raz;d.touch=1;d.opp=1}
  return d
 }
 function pickDareCard(opts){
