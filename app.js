@@ -193,7 +193,7 @@ function sexKey(){return prefs.mode==='team'?'teamSex':prefs.mode==='pair'?'pair
 function sexes(){var k=sexKey();if(!prefs[k])prefs[k]=[];var n=names().length;while(prefs[k].length<n)prefs[k].push(prefs[k].length%2?'f':'m');if(prefs[k].length>n)prefs[k]=prefs[k].slice(0,n);return prefs[k]}
 /* Бесплатный Supabase: подставь URL проекта и anon-ключ, чтобы включить общий рейтинг.
    service_role сюда не класть. Пока пусто — вкладка «Топ» показывает заглушку. */
-var APP_VER='9.0';
+var APP_VER='10.0';
 var SUPABASE={url:'https://zzuyvlzraykibovxsfvc.supabase.co',anon:'sb_publishable_YIMP4FCnDx2cXFbqEz9sdA_E0NuRKpp'};
 function sbOn(){return !!(SUPABASE&&SUPABASE.url&&SUPABASE.anon)}
 function sbHeads(){return {'apikey':SUPABASE.anon,'Authorization':'Bearer '+SUPABASE.anon,'Content-Type':'application/json','Prefer':'return=representation'}}
