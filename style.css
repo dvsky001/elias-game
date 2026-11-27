@@ -46,6 +46,7 @@ input{font:inherit;color:inherit}
 /* list rows */
 .row{background:#F7F7F7;border-bottom:1px solid #E4E4E4;display:flex;align-items:center;min-height:62px;padding:0 14px 0 20px;gap:10px}
 .row input.nm{flex:1;border:0;background:transparent;font-size:20px;font-weight:700;color:#3B3B3B;padding:16px 0;min-width:0;-webkit-user-select:text;user-select:text}
+.row input.nm::placeholder{color:#b3b3b3;font-weight:600}
 .row .del{font-size:34px;color:#B5B5B5;width:44px;height:44px;line-height:40px;font-weight:300}
 .plus{display:block;width:100%;background:var(--o);color:#fff;font-size:38px;font-weight:300;height:56px;line-height:52px}
 .plus:active{background:var(--od)}
@@ -125,9 +126,12 @@ input{font:inherit;color:inherit}
 
 /* play */
 .play{background:linear-gradient(#FFB02E,#FB931A);color:#fff;touch-action:none}
-.ptop{display:grid;grid-template-columns:70px 1fr 70px;align-items:center;padding:calc(var(--sat) + 10px) 12px 0}
-.ptop .pa{width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.28);display:flex;align-items:center;justify-content:center}
-.ptop .pa i{display:block;width:5px;height:18px;background:#fff;border-radius:2px;margin:0 2.5px}
+.ptop{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:8px;padding:calc(var(--sat) + 10px) 12px 0}
+.ptop .pa{height:44px;padding:0 12px 0 10px;border-radius:22px;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;gap:6px;color:#fff;font-weight:800;font-size:14px;box-shadow:0 2px 0 rgba(0,0,0,.18)}
+.ptop .pa i{display:block;width:5px;height:16px;background:#fff;border-radius:2px}
+.ptop .pa i+i{margin-left:3px}
+.wcard.hidden-word{visibility:hidden}
+#overlay.pause-ov .bk{background:rgba(0,0,0,.82)}
 .ptop .pt{text-align:center;font-size:76px;font-weight:900;line-height:1;text-shadow:0 3px 0 rgba(180,90,0,.35);font-variant-numeric:tabular-nums}
 .ptop .pt.low{color:#fff;animation:pulse .5s infinite alternate;text-shadow:0 0 18px #fff}
 @keyframes pulse{from{transform:scale(1)}to{transform:scale(1.14)}}

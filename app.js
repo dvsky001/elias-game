@@ -193,7 +193,7 @@ function sexKey(){return prefs.mode==='team'?'teamSex':prefs.mode==='pair'?'pair
 function sexes(){var k=sexKey();if(!prefs[k])prefs[k]=[];var n=names().length;while(prefs[k].length<n)prefs[k].push(prefs[k].length%2?'f':'m');if(prefs[k].length>n)prefs[k]=prefs[k].slice(0,n);return prefs[k]}
 /* Бесплатный Supabase: подставь URL проекта и anon-ключ, чтобы включить общий рейтинг.
    service_role сюда не класть. Пока пусто — вкладка «Топ» показывает заглушку. */
-var APP_VER='11.0';
+var APP_VER='12.0';
 var SUPABASE={url:'https://zzuyvlzraykibovxsfvc.supabase.co',anon:'sb_publishable_YIMP4FCnDx2cXFbqEz9sdA_E0NuRKpp'};
 function sbOn(){return !!(SUPABASE&&SUPABASE.url&&SUPABASE.anon)}
 function sbHeads(){return {'apikey':SUPABASE.anon,'Authorization':'Bearer '+SUPABASE.anon,'Content-Type':'application/json','Prefer':'return=representation'}}
@@ -578,7 +578,7 @@ function showMenu(){
 
 function showHow(){
  screen(hdr('Как играть','menu')+'<div class="body"><div class="how">'+
- '<h2>Идея</h2><p>Один объясняет слово с карточки, остальные угадывают. Называть само слово и однокоренные нельзя.</p>'+
+ '<h2>Идея</h2><p>Один объясняет слово с карточки, остальные угадывают. Называть само слово и однокоренные нельзя.</p><p>Во время хода кнопка «Пауза» останавливает таймер и прячет слово. Если свернуть приложение, пауза включается сама.</p>'+
  '<h2>Все против всех</h2><ul><li>Объясняющий идёт по кругу.</li><li>Слово угадали: свайп <span class="sw">вверх ▲</span>, объясняющему +1.</li><li>Пропуск: свайп <span class="sw">вниз ▼</span>, объясняющему −1.</li><li>Когда время вышло, последнее слово: угадали или нет. Угадали — +1 объясняющему.</li><li>В настройках можно включить «Отмечать, кто угадал»: тогда очко получают и угадавший, и объясняющий.</li><li>Игра идёт до 30 очков (можно изменить).</li></ul>'+
  '<h2>Командная игра</h2><ul><li>Объясняет игрок из команды, угаданное слово +1 команде, пропуск −1.</li><li>Последнее слово после таймера может забрать любая команда.</li><li>Обычно играют до 50 очков, ход заканчивается кругом, чтобы у всех было поровну ходов.</li></ul>'+
  '<h2>Модификации</h2><ul><li><b>Без штрафа</b>: пропуск ничего не отнимает.</li><li><b>Блиц</b>: ход 30 секунд, +2 за слово.</li><li><b>Жесты / рисунок</b>: на некоторых карточках появляется задание.</li><li><b>Спасения</b>: 1–2 пропуска за игру без штрафа.</li></ul>'+
@@ -586,10 +586,17 @@ function showHow(){
 
 /* players */
 function names(){return prefs[prefs.mode]}
+function namePh(m,i){return m==='team'?'Команда '+(i+1):m==='pair'?(i?'Партнёр':'Я'):'Игрок '+(i+1)}
+function resetNamesForNewGame(){
+ if(P){stopTimer();P=null}
+ G=null;saveG();
+ prefs.ffa=['','',''];prefs.team=['','',''];prefs.pair=['',''];
+ prefs.ffaSex=['m','f','m'];prefs.teamSex=['m','f','m'];prefs.pairSex=['m','f'];
+ savePrefs()}
 function showPlayers(){
- var m=prefs.mode;if(m==='pair'){if(!prefs.pair||prefs.pair.length!==2)prefs.pair=['Я','Партнёр'];if(!prefs.pairSex||prefs.pairSex.length!==2)prefs.pairSex=['m','f']}
+ var m=prefs.mode;if(m==='pair'){if(!prefs.pair||prefs.pair.length!==2)prefs.pair=['',''];if(!prefs.pairSex||prefs.pairSex.length!==2)prefs.pairSex=['m','f']}
  var list=names();
- var sx=sexes();var rows=list.map(function(n,i){return '<div class="row"><input class="nm" data-i="'+i+'" value="'+esc(n)+'" maxlength="24" autocomplete="off" autocapitalize="sentences"><div class="sex"><button type="button" data-sex="m" data-i="'+i+'" class="'+(sx[i]==='m'?'on':'')+'">М</button><button type="button" data-sex="f" data-i="'+i+'" class="'+(sx[i]==='f'?'on':'')+'">Ж</button></div>'+(m==='pair'?'':'<button class="del" data-del="'+i+'" aria-label="Удалить">×</button>')+'</div>'}).join('');
+ var sx=sexes();var rows=list.map(function(n,i){return '<div class="row"><input class="nm" data-i="'+i+'" value="'+esc(n)+'" placeholder="'+esc(namePh(m,i))+'" maxlength="24" autocomplete="off" autocapitalize="sentences"><div class="sex"><button type="button" data-sex="m" data-i="'+i+'" class="'+(sx[i]==='m'?'on':'')+'">М</button><button type="button" data-sex="f" data-i="'+i+'" class="'+(sx[i]==='f'?'on':'')+'">Ж</button></div>'+(m==='pair'?'':'<button class="del" data-del="'+i+'" aria-label="Удалить">×</button>')+'</div>'}).join('');
  var title=m==='team'?'Команды':m==='pair'?'Пара':'Игроки';
  var hint=m==='pair'?'Игра вдвоём, 18+. Наказания становятся острее с каждым раундом: 🌶, потом 🌶🌶, потом 🌶🌶🌶.':(m==='ffa'?'Каждый играет сам за себя. Объясняющий идёт по кругу.':'Объясняет любой игрок команды.');
  screen(hdr(title,'menu')+'<div class="seg"><button data-mode="ffa" class="'+(m==='ffa'?'on':'')+'">Все против всех</button><button data-mode="team" class="'+(m==='team'?'on':'')+'">Командная</button><button data-mode="pair" class="'+(m==='pair'?'on':'')+'">Для пары</button></div>'+
@@ -695,7 +702,7 @@ function showPlay(){
  if(G.pendingFx){G.activeFx=G.pendingFx;G.pendingFx=null}else G.activeFx=null;
  var e=curE(),dur=G.set.blitz?30:G.set.time;
  P={items:[],dur:dur,rem:dur*1000,end:0,paused:false,iv:null,card:newCard(),busy:false,lastBeep:99,sheet:false};
- screen(cityScene(true)+'<div class="ptop"><button class="pa" data-act="pause" aria-label="Пауза"><i></i><i></i></button><div class="pt" id="tm">'+dur+'</div><div class="ps">очки хода<b id="pd">0</b></div></div>'+
+ screen(cityScene(true)+'<div class="ptop"><button class="pa" data-act="pause" aria-label="Пауза"><i></i><i></i><span>Пауза</span></button><div class="pt" id="tm">'+dur+'</div><div class="ps">очки хода<b id="pd">0</b></div></div>'+
  '<div class="pwho">'+esc(G.names[e])+(G.set.penalty&&G.set.saves>0?' · спасений: <span id="svl"></span>':'')+'</div><div class="pbar"><i id="pb"></i></div>'+
  '<div class="arena"><div class="hintup">УГАДАЛИ</div><div class="hintdn">ПРОПУСК</div><div id="cardhold" style="width:100%;display:flex;justify-content:center"></div></div>'+
  '<div class="pact"><button class="no" data-act="skip" aria-label="Пропуск">✕</button><button class="yes" data-act="ok" aria-label="Угадали">✓</button></div>','play');
@@ -759,11 +766,13 @@ function timeUp(){
  stopTimer();P.over=true;P.sheet=false;closeOv();stopListen();beep(220,.7,.2);speak('Время вышло.');syncAdsHot();
  var el=$('#wc');if(el)el.style.transform='';
  if(G.set.lastAll)showLast();else showResults()}
+function hidePlayWord(on){var el=$('#wc');if(el)el.classList.toggle('hidden-word',!!on)}
 function pauseGame(){
  if(!P||P.paused||P.over)return;P.paused=true;P.rem=Math.max(0,P.end-Date.now());stopListen();try{if(window.speechSynthesis)speechSynthesis.cancel()}catch(e){}
- syncAdsHot();
- modal('<h3>Пауза</h3><p>Таймер остановлен.</p><button class="opt" data-r>Продолжить</button><button class="opt gy" data-e>Закончить ход</button><button class="opt gy" data-m>Выйти в меню</button>',false);
- $('[data-r]',ov).onclick=function(){closeOv();P.paused=false;P.end=Date.now()+P.rem;syncAdsHot();startListen()};
+ hidePlayWord(true);syncAdsHot();
+ modal('<h3>Пауза</h3><p>Таймер остановлен, слово скрыто.</p><button class="opt" data-r>Продолжить</button><button class="opt gy" data-e>Закончить ход</button><button class="opt gy" data-m>Выйти в меню</button>',false);
+ ov.classList.add('pause-ov');
+ $('[data-r]',ov).onclick=function(){hidePlayWord(false);closeOv();P.paused=false;P.end=Date.now()+P.rem;syncAdsHot();startListen()};
  $('[data-e]',ov).onclick=function(){closeOv();stopTimer();P.over=true;showResults()};
  $('[data-m]',ov).onclick=function(){closeOv();stopTimer();stopVoice();P=null;showMenu()}}
 document.addEventListener('visibilitychange',function(){if(document.hidden&&P&&!P.over&&!P.paused&&$('#tm'))pauseGame()});
@@ -842,7 +851,7 @@ document.addEventListener('click',function(ev){
   modal('<h3>Удалить колоду?</h3><p>Слова этой колоды будут удалены с устройства.</p><button class="opt r" data-ok>Удалить</button><button class="opt gy" data-no>Отмена</button>');
   $('[data-no]',ov).onclick=closeOv;$('[data-ok]',ov).onclick=function(){custom=custom.filter(function(c){return c.id!==id});sv('elias.custom',custom);prefs.decks=prefs.decks.filter(function(x){return x!==id});savePrefs();closeOv();showDicts()};return}
  var a=t.getAttribute('data-act');
- if(t.hasAttribute('data-mode')){var md=t.getAttribute('data-mode');var go=function(){prefs.mode=md;if(md==='pair'){prefs.punish=true;if(!prefs.pair||prefs.pair.length!==2)prefs.pair=['Я','Партнёр'];if(!prefs.pairSex||prefs.pairSex.length!==2)prefs.pairSex=['m','f']}savePrefs();showPlayers()};if(md==='pair'&&!prefs.adultOk){askAdult(go);return}go();return}
+ if(t.hasAttribute('data-mode')){var md=t.getAttribute('data-mode');var go=function(){prefs.mode=md;if(md==='pair'){prefs.punish=true;if(!prefs.pair||prefs.pair.length!==2)prefs.pair=['',''];if(!prefs.pairSex||prefs.pairSex.length!==2)prefs.pairSex=['m','f']}savePrefs();showPlayers()};if(md==='pair'&&!prefs.adultOk){askAdult(go);return}go();return}
  if(t.hasAttribute('data-gv')){ev.stopPropagation();var gp=t.getAttribute('data-gv').split('|');voteWord(gp[0],+gp[1]);return}
  if(t.hasAttribute('data-like')){ev.stopPropagation();likeTop(t.getAttribute('data-like'));return}
  if(t.hasAttribute('data-delpl')){ev.stopPropagation();var pid=t.getAttribute('data-delpl');myPl=myPl.filter(function(g){return g.id!==pid});savePl();if(prefs.musicPick===pid){prefs.musicPick='';prefs.musicAuto=true;savePrefs()}musicPanel();return}
@@ -866,7 +875,7 @@ document.addEventListener('click',function(ev){
   case 'menu':if(P){stopTimer();P=null}closeOv();return showMenu();
   case 'hideinst':prefs.installHide=true;savePrefs();return showMenu();
   case 'continue':if(G){return G.phase==='board'?showBoard(true):showReady()}return showMenu();
-  case 'new':return showPlayers();
+  case 'new':resetNamesForNewGame();return showPlayers();
   case 'how':return showHow();
   case 'music':musicPanel();return;
 case 'suggest':showSuggest();return;
@@ -887,7 +896,7 @@ case 'suggest':showSuggest();return;
   case 'dareko':G.fines=G.fines||[];if(DareLoser>=0)G.fines.push({p:DareLoser,d:-2});if(!G.over)saveG();finishDareThen();return;
   case 'daredrink':toast(currentHeat()>=3?'Штрафной шот вместо −2. Пейте ответственно.':'Глоток вместо −2. Пейте ответственно.');if(!G.over)saveG();finishDareThen();return;
   case 'players':return showPlayers();
-  case 'add':if(prefs.mode==='pair')return;var l2=names();l2.push(prefs.mode==='team'?(TM_NAMES.filter(function(x){return l2.indexOf(x)<0})[0]||'Команда '+(l2.length+1)):'Игрок '+(l2.length+1));sexes().push(l2.length%2?'f':'m');savePrefs();showPlayers();var ins=$$('input.nm');if(ins.length){var li=ins[ins.length-1];li.focus();li.select()}$('.body').scrollTop=9999;return;
+  case 'add':if(prefs.mode==='pair')return;var l2=names();l2.push('');sexes().push(l2.length%2?'f':'m');savePrefs();showPlayers();var ins=$$('input.nm');if(ins.length){var li=ins[ins.length-1];li.focus();li.select()}$('.body').scrollTop=9999;return;
   case 'settings':return showSettings();
   case 'dicts':return showDicts();
   case 'addck':return addDeckModal();
