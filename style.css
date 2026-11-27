@@ -150,13 +150,19 @@ input{font:inherit;color:inherit}
 .wcard .w.long{font-size:30px}.wcard .w.xl{font-size:24px}
 .wcard .artn{margin-top:10px;font-size:15px;font-weight:700;color:#888;max-width:100%}
 .wcard .tk{position:absolute;top:14px;left:0;right:0;display:flex;justify-content:center;gap:6px}
-.wcard .free{position:absolute;bottom:14px;font-size:12.5px;font-weight:800;color:var(--b2)}
+.wcard .free{position:absolute;bottom:58px;font-size:12.5px;font-weight:800;color:var(--b2)}
+.wcard .wvote{position:absolute;left:0;right:0;bottom:10px;display:flex;justify-content:center;gap:10px;z-index:3}
+.wcard .wvote button{width:42px;height:42px;border-radius:21px;background:#F2F2F2;font-size:20px;line-height:42px;box-shadow:0 1px 0 #ddd}
+.wcard .wvote button.on[data-wvote="1"]{background:#DFF7E3}
+.wcard .wvote button.on[data-wvote="-1"]{background:#FFE3E1}
 .wcard.g{background:#DFF7E3}.wcard.s{background:#FFE3E1}
 .wcard .stamp{position:absolute;font-size:30px;font-weight:900;opacity:0;transform:rotate(-8deg);border:4px solid;border-radius:12px;padding:2px 12px;letter-spacing:1px}
 .wcard .stamp.g{color:var(--g);top:22px;left:20px}
 .wcard .stamp.s{color:var(--r);bottom:22px;right:20px;transform:rotate(8deg)}
 .pact{display:flex;gap:14px;padding:0 22px calc(18px + var(--sab))}
-.pact button{flex:1;height:62px;border-radius:31px;font-size:30px;font-weight:900;color:#fff;box-shadow:0 3px 0 rgba(0,0,0,.18)}
+.pact button{flex:1;height:62px;border-radius:31px;font-weight:900;color:#fff;box-shadow:0 3px 0 rgba(0,0,0,.18);display:flex;align-items:center;justify-content:center;gap:8px}
+.pact button .ic{font-size:26px;line-height:1}
+.pact button .lab{font-size:16px;font-weight:800}
 .pact .no{background:var(--r)}.pact .yes{background:var(--g)}
 .pact button:active{transform:translateY(2px)}
 

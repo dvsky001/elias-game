@@ -138,13 +138,13 @@ var DARES=[
  {t:'Передать свои трусы партнёру изо рта в руку, только с согласия',lv:3,opp:1},
  {t:'Объяснить следующее слово с завязанными глазами',lv:3,opp:0,fx:'blind'},
  {t:'Объяснить следующее слово только стонами',lv:3,opp:0,fx:'moan'},
- {t:'Погладить партнёра противоположного пола по бедру',lv:2,opp:1},
+ {t:'Погладить партнёра по голой коже',lv:2,opp:1,touch:1,kind:'stroke'},
  {t:'Потрогать грудь партнёра через одежду',lv:3,opp:1},
  {t:'Потрогать ягодицы партнёра через одежду',lv:3,opp:1},
  {t:'Провести рукой под футболкой по спине',lv:2,opp:1},
  {t:'Провести рукой под футболкой по животу',lv:3,opp:1},
  {t:'Найди точку: партнёр ставит маркер, ты с закрытыми глазами ищешь её 30 секунд',lv:3,opp:1,fx:'dot'},
- {t:'Погладить внутреннюю сторону бедра поверх одежды',lv:3,opp:1},
+ {t:'Погладить партнёра по голой коже (жарче)',lv:3,opp:1,touch:1,kind:'stroke'},
  {t:'Обнять, заведя руки под футболку на спину',lv:2,opp:1},
  {t:'Провести ладонями по бокам под одеждой от талии вверх',lv:3,opp:1},
  {t:'С закрытыми глазами на ощупь найти губы партнёра и поцеловать',lv:2,opp:1}
@@ -193,7 +193,7 @@ function sexKey(){return prefs.mode==='team'?'teamSex':prefs.mode==='pair'?'pair
 function sexes(){var k=sexKey();if(!prefs[k])prefs[k]=[];var n=names().length;while(prefs[k].length<n)prefs[k].push(prefs[k].length%2?'f':'m');if(prefs[k].length>n)prefs[k]=prefs[k].slice(0,n);return prefs[k]}
 /* Бесплатный Supabase: подставь URL проекта и anon-ключ, чтобы включить общий рейтинг.
    service_role сюда не класть. Пока пусто — вкладка «Топ» показывает заглушку. */
-var APP_VER='12.0';
+var APP_VER='12.1';
 var SUPABASE={url:'https://zzuyvlzraykibovxsfvc.supabase.co',anon:'sb_publishable_YIMP4FCnDx2cXFbqEz9sdA_E0NuRKpp'};
 function sbOn(){return !!(SUPABASE&&SUPABASE.url&&SUPABASE.anon)}
 function sbHeads(){return {'apikey':SUPABASE.anon,'Authorization':'Bearer '+SUPABASE.anon,'Content-Type':'application/json','Prefer':'return=representation'}}
@@ -312,12 +312,42 @@ function voteWord(id,val){
 
 function lastTurnScores(){var last=G.logs[G.logs.length-1],n=G.names.length,a=[],i;for(i=0;i<n;i++)a.push(0);if(!last)return a;var v=unit(G.set);last.items.forEach(function(it){if(it.st==='g'){if(isSolo()&&G.set.markWho&&it.by!=null){a[it.by]+=v;a[last.e]+=v}else a[it.by!=null?it.by:last.e]+=v}else if(it.st==='s'&&G.set.penalty)a[last.e]-=1});return a}
 function pickOpp(loser){var sex=G.sex||[],mine=sex[loser],c=[];for(var i=0;i<G.names.length;i++)if(i!==loser&&mine&&sex[i]&&sex[i]!==mine)c.push(i);return c.length?pick(c):-1}
-var DareNext=null,DareLoser=-1,DareNow=null,DareKind=null,DotIv=null,usedTruths=[];
+var DareNext=null,DareLoser=-1,DareNow=null,DarePending=null,DareKind=null,DotIv=null,usedTruths=[];
 function currentHeat(){if(G&&G.set&&G.set.pairEscalate)return Math.min(3,Math.max(1,G.logs.length));return (G&&G.set&&G.set.heat)||prefs.heat||1}
 function stopDot(){if(DotIv){clearInterval(DotIv);DotIv=null}}
 function alcoholNote(lv){if(!(G&&G.set&&G.set.alcohol))return '';return '<div class="alc">Пейте ответственно. '+(lv>=3?'Проигравший пьёт штрафной шот.':'Проигравший пьёт глоток.')+'</div>'}
 function dareBtns(okLab){var h='<div class="bot darebtns"><button class="obtn" data-act="dareok">'+(okLab||'Выполнено')+'</button><button class="obtn cy" data-act="dareko">Отказ (−2 очка)</button>';if(G.set&&G.set.alcohol)h+='<button class="obtn" data-act="daredrink">Выпить вместо −2</button>';return h+'</div>'}
-function pickDareCard(){var heat=currentHeat();G.usedDares=G.usedDares||[];var pool=allDares().filter(function(d){return (d.lv||1)<=heat&&G.usedDares.indexOf(d.t)<0});if(!pool.length){G.usedDares=[];pool=allDares().filter(function(d){return (d.lv||1)<=heat})}var d=pick(pool);G.usedDares.push(d.t);return d}
+function dareId(d){return d.id||d.t}
+function isTouchDare(d){
+ if(!d||d.truth)return false;
+ if(d.touch===1||d.kind==='stroke'||d.fx==='dot')return true;
+ if(d.touch===0)return false;
+ if(d.custom&&d.opp)return true;
+ var t=(d.t||'').toLowerCase();
+ return /поцел|обнять|массаж|поглад|потрог|провести (рукой|пальц|ладон|кубик|льд)|облизать|укусить|держать за руку|покормить|на колен|лечь головой|снять с партн|партнёру снять|нарисовать сердечко|приват|медленный танец|на ощупь|найди точку|дорожку поцелуев/.test(t)
+}
+var STROKE_PLACES=['голым плечам','голой спине','голой шее','голому животу','голому бедру','голому предплечью','голой талии','голым ключицам'];
+function concretizeDare(d){
+ if(!d)return d;d=Object.assign({},d);
+ if(d.kind==='stroke'){d.t='Погладить партнёра по '+pick(STROKE_PLACES)+' '+(3+rnd(8))+' раз';d.touch=1;d.opp=1}
+ return d
+}
+function pickDareCard(opts){
+ opts=opts||{};var heat=currentHeat();G.usedDares=G.usedDares||[];
+ function ok(d,ignoreUsed){
+  if((d.lv||1)>heat)return false;
+  if(opts.noTouch&&isTouchDare(d))return false;
+  if(!ignoreUsed&&G.usedDares.indexOf(dareId(d))>=0)return false;
+  return true
+ }
+ var pool=allDares().filter(function(d){return ok(d,false)});
+ if(!pool.length){
+  if(opts.noTouch)pool=allDares().filter(function(d){return ok(d,true)});
+  else{G.usedDares=[];pool=allDares().filter(function(d){return ok(d,false)})}
+ }
+ if(!pool.length)return null;
+ var raw=pick(pool);G.usedDares.push(dareId(raw));return concretizeDare(raw)
+}
 function dareOppHtml(d){if(!d||!d.opp)return '';var opp=pickOpp(DareLoser);return opp>=0?'<div class="opp">Партнёр противоположного пола: <b>'+esc(G.names[opp])+'</b></div>':'<div class="opp">Игрока противоположного пола нет — выберите партнёра сами, только по согласию.</div>'}
 function showDare(next,kind){closeOv();stopDot();DareNext=next;DareKind=kind;DareNow=null;
  var scs=kind==='game'?calc(G.logs).sc:lastTurnScores();
@@ -329,7 +359,15 @@ function showTodChoice(){var pep='🌶'.repeat(currentHeat());
  screen('<div class="top"><div></div><div style="font-weight:800">Правда или действие '+pep+'</div></div><div class="dcard"><div class="lab">Проиграл(а)</div><div class="who">'+esc(G.names[DareLoser])+'</div><div class="task">Выбери: ответить на вопрос или выполнить задание.</div><div class="info">Только по взаимному согласию взрослых. Можно отказаться.</div>'+alcoholNote(currentHeat())+'</div><div class="bot darebtns"><button class="obtn" data-act="todtruth">Правда</button><button class="obtn" data-act="toddare">Действие</button></div>','ready dare')}
 function showTruth(){if(usedTruths.length>=TRUTHS.length)usedTruths=[];var left=TRUTHS.filter(function(q){return usedTruths.indexOf(q)<0});var q=pick(left);usedTruths.push(q);DareNow={t:q,lv:currentHeat(),truth:1};
  screen('<div class="top"><div></div><div style="font-weight:800">Правда '+('🌶'.repeat(DareNow.lv))+'</div></div><div class="dcard"><div class="lab">Вопрос для</div><div class="who">'+esc(G.names[DareLoser])+'</div><div class="task">'+esc(q)+'</div><div class="info">Отвечай честно, только если готов(а). Можно отказаться.</div>'+alcoholNote(DareNow.lv)+'</div>'+dareBtns('Ответил(а)'),'ready dare')}
-function startDareAction(){var d=pickDareCard();DareNow=d;if(d.fx==='dot')return showDotPrep(d);return renderDare(d)}
+function startDareAction(){var d=pickDareCard();if(!d){toast('Нет подходящих заданий');return}if(isTouchDare(d))return showTouchConsent(d);return revealDare(d)}
+function revealDare(d){DareNow=d;DarePending=null;if(d.fx==='dot')return showDotPrep(d);return renderDare(d)}
+function showTouchConsent(d){
+ DarePending=d;DareNow=null;var pep='🌶'.repeat(d.lv||currentHeat());
+ var opp=pickOpp(DareLoser),who=opp>=0?esc(G.names[opp]):'Партнёр';
+ screen('<div class="top"><div></div><div style="font-weight:800">Согласие '+pep+'</div></div><div class="dcard"><div class="lab">Спросить сначала</div><div class="who">'+who+'</div><div class="task">Партнёр, согласен на действие с прикосновением?</div><div class="info">Само задание покажем только если да. Если нет — будет другое задание без прикосновений. Только по взаимному согласию взрослых.</div>'+alcoholNote(d.lv||currentHeat())+'</div><div class="bot darebtns"><button class="obtn" data-act="touchyes">Да</button><button class="obtn cy" data-act="touchno">Нет</button></div>','ready dare')
+}
+function onTouchYes(){if(!DarePending)return startDareAction();return revealDare(DarePending)}
+function onTouchNo(){DarePending=null;var d=pickDareCard({noTouch:true});if(!d){toast('Нет заданий без прикосновений');return showTruth()}toast('Тогда другое задание, без прикосновений');return revealDare(d)}
 function renderDare(d){var pep='🌶'.repeat(d.lv||currentHeat());
  screen('<div class="top"><div></div><div style="font-weight:800">Наказание '+pep+'</div></div><div class="dcard"><div class="lab">Проиграл(а)</div><div class="who">'+esc(G.names[DareLoser])+'</div><div class="task">'+esc(d.t)+'</div>'+dareOppHtml(d)+'<div class="info">Только по взаимному согласию взрослых. Можно отказаться.</div>'+alcoholNote(d.lv||currentHeat())+'</div>'+dareBtns(),'ready dare')}
 function showDotPrep(d){var pep='🌶'.repeat(d.lv||3);
@@ -367,11 +405,35 @@ function toast(t){var e=document.createElement('div');e.className='toast';e.text
 /* ---------- words ---------- */
 function deckWords(id){if(W[id])return W[id];if(id==='global')return globalWords();for(var i=0;i<custom.length;i++)if(custom[i].id===id)return custom[i].words;return[]}
 function poolFor(ids){var seen={},out=[];ids.forEach(function(id){deckWords(id).forEach(function(w){var k=wordKey(w);if(!seen[k]){seen[k]=1;out.push(w)}})});return out}
+var wordVotes=ld('elias.wordvotes',{});if(!wordVotes||typeof wordVotes!=='object')wordVotes={};
+function saveWordVotes(){sv('elias.wordvotes',wordVotes)}
+function wordRec(w){return wordVotes[wordKey(w)]||{down:0,my:0}}
+function wordWeight(w){var r=wordRec(w);if((r.down||0)>=2)return 0;if((r.down||0)===1)return 1;if(r.my===1)return 5;return 3}
+function pickWeighted(arr){
+ var i,sum=0,weights=[];for(i=0;i<arr.length;i++){weights[i]=wordWeight(arr[i]);sum+=weights[i]}
+ if(sum<=0)return pick(arr);
+ var x=Math.random()*sum;for(i=0;i<arr.length;i++){x-=weights[i];if(x<=0)return arr[i]}
+ return arr[arr.length-1]
+}
+function votePlayWord(dir){
+ if(!P||!P.card||P.over)return;
+ var k=wordKey(P.card.w),rec=wordVotes[k]||{down:0,my:0};
+ if(dir===1){if(rec.my===1)rec.my=0;else{if(rec.my===-1)rec.down=Math.max(0,(rec.down||0)-1);rec.my=1}}
+ else{if(rec.my===-1){rec.my=0;rec.down=Math.max(0,(rec.down||0)-1)}else{rec.down=(rec.down||0)+1;rec.my=-1}}
+ wordVotes[k]=rec;saveWordVotes();updWordVotes();
+ if(rec.my===-1&&rec.down>=2)toast('Это слово больше не будем показывать');
+ else if(rec.my===-1)toast('Будем показывать это слово реже')
+}
+function updWordVotes(){
+ if(!P||!P.card)return;var rec=wordRec(P.card.w);
+ $$('#wc [data-wvote]').forEach(function(b){var v=+b.getAttribute('data-wvote');b.classList.toggle('on',rec.my===v)})
+}
 function drawWord(){
  var pool=poolFor(G.decks);
  var left=pool.filter(function(w){return !played[wordKey(w)]});
  if(!left.length){pool.forEach(function(w){delete played[wordKey(w)]});left=pool.slice();toast('Слова выбранных колод закончились — начинаем круг заново')}
- var w=pick(left);played[wordKey(w)]=1;sv('elias.played',played);return w}
+ var fresh=left.filter(function(w){return wordWeight(w)>0});
+ var w=pickWeighted(fresh.length?fresh:left);played[wordKey(w)]=1;sv('elias.played',played);return w}
 function newCard(){
  var w=drawWord(),task=null,t=[];
  if(G.set.gest)t.push('gest');if(G.set.draw)t.push('draw');
@@ -582,7 +644,7 @@ function showHow(){
  '<h2>Все против всех</h2><ul><li>Объясняющий идёт по кругу.</li><li>Слово угадали: свайп <span class="sw">вверх ▲</span>, объясняющему +1.</li><li>Пропуск: свайп <span class="sw">вниз ▼</span>, объясняющему −1.</li><li>Когда время вышло, последнее слово: угадали или нет. Угадали — +1 объясняющему.</li><li>В настройках можно включить «Отмечать, кто угадал»: тогда очко получают и угадавший, и объясняющий.</li><li>Игра идёт до 30 очков (можно изменить).</li></ul>'+
  '<h2>Командная игра</h2><ul><li>Объясняет игрок из команды, угаданное слово +1 команде, пропуск −1.</li><li>Последнее слово после таймера может забрать любая команда.</li><li>Обычно играют до 50 очков, ход заканчивается кругом, чтобы у всех было поровну ходов.</li></ul>'+
  '<h2>Модификации</h2><ul><li><b>Без штрафа</b>: пропуск ничего не отнимает.</li><li><b>Блиц</b>: ход 30 секунд, +2 за слово.</li><li><b>Жесты / рисунок</b>: на некоторых карточках появляется задание.</li><li><b>Спасения</b>: 1–2 пропуска за игру без штрафа.</li></ul>'+
- '<h2>Наказание</h2><p>Опция 18+. Проигравший тянет карточку-действие. Если нужно «противоположному полу», приложение выбирает партнёра по указанному полу. Всё только по согласию: «Отказ» стоит −2 очка. Нет боли и опасности. Можно включить «Правда или действие», режим «Для пары» (жаркость растёт с каждым раундом), свои задания и модификатор «Алкоголь» (глоток или шот, при отказе можно выпить вместо −2). Рядом предупреждение: пейте ответственно. Задание «Найди точку»: партнёр ставит маркер, ищущий с закрытыми глазами ищет её 30 секунд; нашёл — +1, не нашёл — ещё одно задание.</p><h2>Музыка</h2><p>Кнопка «Музыка» открывает плейлисты: «Весёлый» для обычных колод, «Секс / чувственный» для Страсти и Намёков, «Жёсткий / Rammstein» для БДСМ, Пошлых хитов и Наказания. Отдельный плейлист «Hush Hush и похожие» выбирается только вручную. Можно добавить свой плейлист ссылкой из Apple Music, Яндекс Музыки или ВК — он хранится на этом телефоне, а в общий топ попадёт после подключения бесплатной базы. Один лайк с устройства. Рекомендуемый подсвечивается сам. Треки в приложение не встроены.</p><h2>Слова</h2><p>Слова не повторяются: игра помнит сыгранные и показывает только новые. Можно добавить свою колоду, вставив слова списком.</p></div></div>')}
+ '<h2>Наказание</h2><p>Опция 18+. Проигравший тянет карточку-действие. Если нужно «противоположному полу», приложение выбирает партнёра по указанному полу. Перед заданием с прикосновением игра сначала спрашивает партнёра, не озвучивая само действие: если нет — выпадет другое задание без прикосновений. «Погладить партнёра» — по голой коже на конкретном месте (плечи, спина, шея, живот, бедро и т.п., без половых органов) и случайное число раз. Всё только по согласию: «Отказ» стоит −2 очка. Нет боли и опасности. Можно включить «Правда или действие», режим «Для пары» (жаркость растёт с каждым раундом), свои задания и модификатор «Алкоголь» (глоток или шот, при отказе можно выпить вместо −2). Рядом предупреждение: пейте ответственно. Задание «Найди точку»: партнёр ставит маркер, ищущий с закрытыми глазами ищет её 30 секунд; нашёл — +1, не нашёл — ещё одно задание.</p><h2>Музыка</h2><p>Кнопка «Музыка» открывает плейлисты: «Весёлый» для обычных колод, «Секс / чувственный» для Страсти и Намёков, «Жёсткий / Rammstein» для БДСМ, Пошлых хитов и Наказания. Отдельный плейлист «Hush Hush и похожие» выбирается только вручную. Можно добавить свой плейлист ссылкой из Apple Music, Яндекс Музыки или ВК — он хранится на этом телефоне, а в общий топ попадёт после подключения бесплатной базы. Один лайк с устройства. Рекомендуемый подсвечивается сам. Треки в приложение не встроены.</p><h2>Слова</h2><p>Слова не повторяются: игра помнит сыгранные и показывает только новые. На карточке можно поставить 👍 или 👎: слово с одним дизлайком появляется реже, после двух — больше не показывается. Можно добавить свою колоду, вставив слова списком.</p></div></div>')}
 
 /* players */
 function names(){return prefs[prefs.mode]}
@@ -637,7 +699,7 @@ function showSettings(){
 function addDareModal(){modal('<h3>Своё задание</h3><p>Только для взрослых, по согласию и без вреда здоровью. Попадёт в общий пул наказаний на этом телефоне.</p><textarea id="dt" maxlength="80" placeholder="Текст задания"></textarea><div class="stp" style="justify-content:center;margin:8px 0">'+[1,2,3].map(function(n){return '<button type="button" data-dlv="'+n+'" class="'+(n===2?'on':'')+'">'+'🌶'.repeat(n)+'</button>'}).join('')+'</div><label class="chk"><input type="checkbox" id="dopp"> Нужен партнёр противоположного пола</label><button class="opt" data-ok>Сохранить</button><button class="opt gy" data-no>Отмена</button>');
  var lv=2;$$('[data-dlv]',ov).forEach(function(b){b.onclick=function(){lv=+b.getAttribute('data-dlv');$$('[data-dlv]',ov).forEach(function(x){x.classList.toggle('on',+x.getAttribute('data-dlv')===lv)})}});
  $('[data-no]',ov).onclick=closeOv;
- $('[data-ok]',ov).onclick=function(){var tx=($('#dt').value||'').trim();if(tx.length<4){toast('Напиши задание покороче, но не пустое');return}if(tx.length>80){toast('До 80 символов');return}if(myDares.length>=40){toast('Слишком много своих заданий');return}myDares.push({t:tx,lv:lv,opp:$('#dopp')&&$('#dopp').checked?1:0});saveMyDares();closeOv();showSettings()}}
+ $('[data-ok]',ov).onclick=function(){var tx=($('#dt').value||'').trim();if(tx.length<4){toast('Напиши задание покороче, но не пустое');return}if(tx.length>80){toast('До 80 символов');return}if(myDares.length>=40){toast('Слишком много своих заданий');return}myDares.push({t:tx,lv:lv,opp:$('#dopp')&&$('#dopp').checked?1:0,custom:1});saveMyDares();closeOv();showSettings()}}
 
 /* dictionaries */
 var samples={};
@@ -705,7 +767,7 @@ function showPlay(){
  screen(cityScene(true)+'<div class="ptop"><button class="pa" data-act="pause" aria-label="Пауза"><i></i><i></i><span>Пауза</span></button><div class="pt" id="tm">'+dur+'</div><div class="ps">очки хода<b id="pd">0</b></div></div>'+
  '<div class="pwho">'+esc(G.names[e])+(G.set.penalty&&G.set.saves>0?' · спасений: <span id="svl"></span>':'')+'</div><div class="pbar"><i id="pb"></i></div>'+
  '<div class="arena"><div class="hintup">УГАДАЛИ</div><div class="hintdn">ПРОПУСК</div><div id="cardhold" style="width:100%;display:flex;justify-content:center"></div></div>'+
- '<div class="pact"><button class="no" data-act="skip" aria-label="Пропуск">✕</button><button class="yes" data-act="ok" aria-label="Угадали">✓</button></div>','play');
+ '<div class="pact"><button class="no" data-act="skip" aria-label="Пропуск"><span class="ic">✕</span><span class="lab">Пропуск</span></button><button class="yes" data-act="ok" aria-label="Угадали"><span class="ic">✓</span><span class="lab">Угадали</span></button></div>','play');
  mountCard();updPlay();bindAds();
  P.end=Date.now()+P.rem;P.iv=setInterval(tick,100);beep(660,.12);speakTurn();startListen()}
 function usedNow(){var e=curE();return calc(G.logs).used[e]+P.items.filter(function(i){return i.st==='f'}).length}
@@ -721,12 +783,12 @@ function mountCard(){
  if(c.task)tk+='<span class="chip r">'+(c.task==='gest'?'🤐 Покажи жестами':'✏️ Нарисуй')+'</span>';
  if(c.task||fx)tk+='</div>';
  var free=(G.set.penalty&&G.set.saves-usedNow()>0)?'<div class="free">пропуск без штрафа (спасение)</div>':'';
- hold.innerHTML='<div class="wcard" id="wc">'+tk+'<div class="stamp g">УГАДАЛИ</div><div class="stamp s">ПРОПУСК</div>'+wordCardHtml(c.w)+free+'</div>';
- var el=$('#wc');el.style.animation='cardin .22s ease-out';bindDrag(el)}
+ hold.innerHTML='<div class="wcard" id="wc">'+tk+'<div class="stamp g">УГАДАЛИ</div><div class="stamp s">ПРОПУСК</div>'+wordCardHtml(c.w)+free+'<div class="wvote"><button type="button" data-wvote="1" aria-label="Нравится">👍</button><button type="button" data-wvote="-1" aria-label="Не нравится">👎</button></div></div>';
+ var el=$('#wc');el.style.animation='cardin .22s ease-out';bindDrag(el);updWordVotes()}
 function bindDrag(el){
  var sy=0,dy=0,act=false,id=null;
  var sg=$('.stamp.g',el),ss=$('.stamp.s',el);
- el.addEventListener('pointerdown',function(ev){if(P.busy||P.paused||P.sheet)return;act=true;sy=ev.clientY;dy=0;id=ev.pointerId;try{el.setPointerCapture(id)}catch(e){}el.style.transition='none'});
+ el.addEventListener('pointerdown',function(ev){if(ev.target.closest('[data-wvote]'))return;if(P.busy||P.paused||P.sheet)return;act=true;sy=ev.clientY;dy=0;id=ev.pointerId;try{el.setPointerCapture(id)}catch(e){}el.style.transition='none'});
  el.addEventListener('pointermove',function(ev){if(!act)return;dy=ev.clientY-sy;el.style.transform='translateY('+dy+'px) rotate('+(dy/40)+'deg)';
   var a=Math.min(1,Math.abs(dy)/90);el.classList.toggle('g',dy<-20);el.classList.toggle('s',dy>20);sg.style.opacity=dy<0?a:0;ss.style.opacity=dy>0?a:0});
  function end(){if(!act)return;act=false;
@@ -845,11 +907,12 @@ function showFinal(sc){
 
 /* ---------- events ---------- */
 document.addEventListener('click',function(ev){
- var t=ev.target.closest('[data-act],[data-mode],[data-tg],[data-sv],[data-dk],[data-del],[data-deldare],[data-delpl],[data-like],[data-gv],[data-i],[data-sex],[data-heat],[data-pwhen],[data-mpick]');
+ var t=ev.target.closest('[data-act],[data-mode],[data-tg],[data-sv],[data-dk],[data-del],[data-deldare],[data-delpl],[data-like],[data-gv],[data-wvote],[data-i],[data-sex],[data-heat],[data-pwhen],[data-mpick]');
  if(!t||!app.contains(t)&&!ov.contains(t))return;
  if(t.hasAttribute('data-del')&&t.closest('.dk')){ev.stopPropagation();var id=t.getAttribute('data-del');
   modal('<h3>Удалить колоду?</h3><p>Слова этой колоды будут удалены с устройства.</p><button class="opt r" data-ok>Удалить</button><button class="opt gy" data-no>Отмена</button>');
   $('[data-no]',ov).onclick=closeOv;$('[data-ok]',ov).onclick=function(){custom=custom.filter(function(c){return c.id!==id});sv('elias.custom',custom);prefs.decks=prefs.decks.filter(function(x){return x!==id});savePrefs();closeOv();showDicts()};return}
+ if(t.hasAttribute('data-wvote')){ev.preventDefault();ev.stopPropagation();votePlayWord(+t.getAttribute('data-wvote'));return}
  var a=t.getAttribute('data-act');
  if(t.hasAttribute('data-mode')){var md=t.getAttribute('data-mode');var go=function(){prefs.mode=md;if(md==='pair'){prefs.punish=true;if(!prefs.pair||prefs.pair.length!==2)prefs.pair=['',''];if(!prefs.pairSex||prefs.pairSex.length!==2)prefs.pairSex=['m','f']}savePrefs();showPlayers()};if(md==='pair'&&!prefs.adultOk){askAdult(go);return}go();return}
  if(t.hasAttribute('data-gv')){ev.stopPropagation();var gp=t.getAttribute('data-gv').split('|');voteWord(gp[0],+gp[1]);return}
@@ -888,6 +951,8 @@ case 'suggest':showSuggest();return;
   case 'mauto':prefs.musicAuto=true;prefs.musicPick='';savePrefs();musicPanel();return;
   case 'todtruth':return showTruth();
   case 'toddare':return startDareAction();
+  case 'touchyes':return onTouchYes();
+  case 'touchno':return onTouchNo();
   case 'dotgo':return showDotSearch();
   case 'dotok':return dotWin();
   case 'dotno':return dotFail();
@@ -928,5 +993,5 @@ if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostnam
   document.addEventListener('visibilitychange',function(){if(!document.hidden)chk()});
   setInterval(chk,300000);chk()}).catch(function(){})}
 loadGlobal();
-window.__elias={get G(){return G},get P(){return P},get DARES(){return DARES},get TRUTHS(){return TRUTHS},get myDares(){return myDares},currentHeat:currentHeat,SUPABASE:SUPABASE};
+window.__elias={get G(){return G},get P(){return P},get DARES(){return DARES},get TRUTHS(){return TRUTHS},get myDares(){return myDares},get wordVotes(){return wordVotes},currentHeat:currentHeat,isTouchDare:isTouchDare,concretizeDare:concretizeDare,pickDareCard:pickDareCard,votePlayWord:votePlayWord,showTouchConsent:showTouchConsent,startDareAction:startDareAction,SUPABASE:SUPABASE};
 })();
