@@ -193,7 +193,7 @@ function sexKey(){return prefs.mode==='team'?'teamSex':prefs.mode==='pair'?'pair
 function sexes(){var k=sexKey();if(!prefs[k])prefs[k]=[];var n=names().length;while(prefs[k].length<n)prefs[k].push(prefs[k].length%2?'f':'m');if(prefs[k].length>n)prefs[k]=prefs[k].slice(0,n);return prefs[k]}
 /* Бесплатный Supabase: подставь URL проекта и anon-ключ, чтобы включить общий рейтинг.
    service_role сюда не класть. Пока пусто — вкладка «Топ» показывает заглушку. */
-var APP_VER='12.2';
+var APP_VER='12.3';
 var SUPABASE={url:'https://zzuyvlzraykibovxsfvc.supabase.co',anon:'sb_publishable_YIMP4FCnDx2cXFbqEz9sdA_E0NuRKpp'};
 function sbOn(){return !!(SUPABASE&&SUPABASE.url&&SUPABASE.anon)}
 function sbHeads(){return {'apikey':SUPABASE.anon,'Authorization':'Bearer '+SUPABASE.anon,'Content-Type':'application/json','Prefer':'return=representation'}}
@@ -789,22 +789,48 @@ function mountCard(){
  var free=(G.set.penalty&&G.set.saves-usedNow()>0)?'<div class="free">пропуск без штрафа (спасение)</div>':'';
  hold.innerHTML='<div class="wcard" id="wc">'+tk+'<div class="stamp g">УГАДАЛИ</div><div class="stamp s">ПРОПУСК</div>'+wordCardHtml(c.w)+free+'</div>';
  var el=$('#wc');el.style.animation='cardin .22s ease-out';bindDrag(el)}
+function isIOS(){return /iPhone|iPad|iPod/i.test(navigator.userAgent||'')||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1)}
+function canAdvance(){if(!P||P.busy||P.paused||P.sheet||P.over)return false;if(P.changedAt&&Date.now()-P.changedAt<400)return false;return true}
+function stopDrag(){if(P&&P.dragOff){try{P.dragOff()}catch(e){}P.dragOff=null}}
+function snapCard(el){if(!el)return;el.style.transition='transform .18s';el.style.transform='';el.classList.remove('g','s');$$('.stamp',el).forEach(function(s){s.style.opacity=0})}
 function bindDrag(el){
- var sy=0,dy=0,act=false,id=null;
+ var sy=0,sx=0,dy=0,dx=0,act=false,id=null;
  var sg=$('.stamp.g',el),ss=$('.stamp.s',el);
- el.addEventListener('pointerdown',function(ev){if(P.busy||P.paused||P.sheet)return;act=true;sy=ev.clientY;dy=0;id=ev.pointerId;try{el.setPointerCapture(id)}catch(e){}el.style.transition='none'});
- el.addEventListener('pointermove',function(ev){if(!act)return;dy=ev.clientY-sy;el.style.transform='translateY('+dy+'px) rotate('+(dy/40)+'deg)';
-  var a=Math.min(1,Math.abs(dy)/90);el.classList.toggle('g',dy<-20);el.classList.toggle('s',dy>20);sg.style.opacity=dy<0?a:0;ss.style.opacity=dy>0?a:0});
- function end(){if(!act)return;act=false;
-  if(dy<-80)fling(el,-1);else if(dy>80)fling(el,1);
-  else{el.style.transition='transform .18s';el.style.transform='';el.classList.remove('g','s');sg.style.opacity=0;ss.style.opacity=0}}
- el.addEventListener('pointerup',end);el.addEventListener('pointercancel',end)}
+ var SWIPE=140;
+ function mine(ev){return act&&ev.pointerId===id}
+ function off(){window.removeEventListener('pointermove',move,true);window.removeEventListener('pointerup',up,true);window.removeEventListener('pointercancel',cancel,true);if(P&&P.dragOff===off)P.dragOff=null}
+ function down(ev){
+  if(ev.isPrimary===false)return;
+  if(ev.pointerType==='mouse'&&ev.button!==0)return;
+  if(!canAdvance())return;
+  act=true;sy=ev.clientY;sx=ev.clientX;dy=0;dx=0;id=ev.pointerId;el.style.transition='none';
+  if(!isIOS()){try{el.setPointerCapture(id)}catch(e){}}
+  window.addEventListener('pointermove',move,true);
+  window.addEventListener('pointerup',up,true);
+  window.addEventListener('pointercancel',cancel,true);
+  if(P)P.dragOff=off
+ }
+ function move(ev){
+  if(!mine(ev))return;
+  dy=ev.clientY-sy;dx=ev.clientX-sx;
+  el.style.transform='translateY('+dy+'px) rotate('+(dy/40)+'deg)';
+  var a=Math.min(1,Math.abs(dy)/90);el.classList.toggle('g',dy<-20);el.classList.toggle('s',dy>20);sg.style.opacity=dy<0?a:0;ss.style.opacity=dy>0?a:0
+ }
+ function up(ev){
+  if(!mine(ev))return;act=false;off();
+  var vertical=Math.abs(dy)>=Math.abs(dx)*1.15;
+  if(vertical&&dy<=-SWIPE)fling(el,-1);else if(vertical&&dy>=SWIPE)fling(el,1);else snapCard(el)
+ }
+ function cancel(ev){if(!mine(ev))return;act=false;off();snapCard(el)}
+ el.addEventListener('pointerdown',down);
+ el.addEventListener('pointermove',move);
+}
 function fling(el,dir){
- if(P.busy)return;P.busy=true;
+ if(!canAdvance()||!el)return;P.busy=true;P.changedAt=Date.now();stopDrag();
  el.style.transition='transform .2s ease-in,opacity .2s';el.style.transform='translateY('+(dir*520)+'px) rotate('+(dir*10)+'deg)';el.style.opacity='0';
- setTimeout(function(){P.busy=false;if(!P||!$('#wc'))return;dir<0?onGuess():onSkip()},190)}
-function btnFling(dir){var el=$('#wc');if(!el||P.busy||P.paused||P.sheet)return;el.classList.add(dir<0?'g':'s');fling(el,dir)}
-function advance(){P.card=newCard();mountCard();updPlay()}
+ setTimeout(function(){if(P)P.busy=false;if(!P||!$('#wc'))return;dir<0?onGuess():onSkip()},190)}
+function btnFling(dir){var el=$('#wc');if(!el||!canAdvance())return;el.classList.add(dir<0?'g':'s');fling(el,dir)}
+function advance(){P.card=newCard();P.changedAt=Date.now();mountCard();updPlay()}
 function onGuess(){
  if(P.over)return;
  if(isSolo()&&G.set.markWho){
@@ -829,12 +855,12 @@ function tick(){
  if(rem<=0)timeUp()}
 function stopTimer(){if(P&&P.iv){clearInterval(P.iv);P.iv=null}}
 function timeUp(){
- stopTimer();P.over=true;P.sheet=false;closeOv();stopListen();beep(220,.7,.2);speak('Время вышло.');syncAdsHot();
+ stopTimer();stopDrag();P.over=true;P.sheet=false;closeOv();stopListen();beep(220,.7,.2);speak('Время вышло.');syncAdsHot();
  var el=$('#wc');if(el)el.style.transform='';
  if(G.set.lastAll)showLast();else showResults()}
 function hidePlayWord(on){var el=$('#wc');if(el)el.classList.toggle('hidden-word',!!on)}
 function pauseGame(){
- if(!P||P.paused||P.over)return;P.paused=true;P.rem=Math.max(0,P.end-Date.now());stopListen();try{if(window.speechSynthesis)speechSynthesis.cancel()}catch(e){}
+ if(!P||P.paused||P.over)return;P.paused=true;P.rem=Math.max(0,P.end-Date.now());stopDrag();stopListen();try{if(window.speechSynthesis)speechSynthesis.cancel()}catch(e){}
  hidePlayWord(true);syncAdsHot();
  modal('<h3>Пауза</h3><p>Таймер остановлен, слово скрыто.</p><button class="opt" data-r>Продолжить</button><button class="opt gy" data-e>Закончить ход</button><button class="opt gy" data-m>Выйти в меню</button>',false);
  ov.classList.add('pause-ov');
@@ -857,7 +883,7 @@ function showLast(){
 
 function icon(it){return it.st==='g'?'<span class="ic g">✓</span>':it.st==='s'?'<span class="ic s">✕</span>':it.st==='f'?'<span class="ic f">✕</span>':'<span class="ic n">–</span>'}
 function showResults(){
- closeOv();stopListen();G.phase='results';var items=P.items,e=curE(),d=turnDelta(items),v=unit(G.set);
+ closeOv();stopDrag();stopListen();G.phase='results';var items=P.items,e=curE(),d=turnDelta(items),v=unit(G.set);
  var g=items.filter(function(i){return i.st==='g'}).length,s=items.filter(function(i){return i.st==='s'||i.st==='f'}).length;
  var rows=items.map(function(it,i){
   var sub=it.st==='g'?(isSolo()&&G.set.markWho&&it.by!=null?'угадал(а): '+esc(G.names[it.by]):(!isSolo()&&it.by!=null&&it.by!==e?'забрала: '+esc(G.names[it.by]):'')):it.st==='f'?'спасение, без штрафа':it.st==='n'?'не засчитано':'';
