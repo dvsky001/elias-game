@@ -193,7 +193,7 @@ function sexKey(){return prefs.mode==='team'?'teamSex':prefs.mode==='pair'?'pair
 function sexes(){var k=sexKey();if(!prefs[k])prefs[k]=[];var n=names().length;while(prefs[k].length<n)prefs[k].push(prefs[k].length%2?'f':'m');if(prefs[k].length>n)prefs[k]=prefs[k].slice(0,n);return prefs[k]}
 /* Бесплатный Supabase: подставь URL проекта и anon-ключ, чтобы включить общий рейтинг.
    service_role сюда не класть. Пока пусто — вкладка «Топ» показывает заглушку. */
-var APP_VER='12.1';
+var APP_VER='12.2';
 var SUPABASE={url:'https://zzuyvlzraykibovxsfvc.supabase.co',anon:'sb_publishable_YIMP4FCnDx2cXFbqEz9sdA_E0NuRKpp'};
 function sbOn(){return !!(SUPABASE&&SUPABASE.url&&SUPABASE.anon)}
 function sbHeads(){return {'apikey':SUPABASE.anon,'Authorization':'Bearer '+SUPABASE.anon,'Content-Type':'application/json','Prefer':'return=representation'}}
@@ -415,9 +415,14 @@ function pickWeighted(arr){
  var x=Math.random()*sum;for(i=0;i<arr.length;i++){x-=weights[i];if(x<=0)return arr[i]}
  return arr[arr.length-1]
 }
-function votePlayWord(dir){
- if(!P||!P.card||P.over)return;
- var k=wordKey(P.card.w),rec=wordVotes[k]||{down:0,my:0};
+function voteBtns(w){
+ var k=wordKey(w),rec=wordRec(w);
+ return '<div class="wvote"><button type="button" data-wvote="1" data-wk="'+esc(k)+'" class="'+(rec.my===1?'on':'')+'" aria-label="Нравится">👍</button><button type="button" data-wvote="-1" data-wk="'+esc(k)+'" class="'+(rec.my===-1?'on':'')+'" aria-label="Не нравится">👎</button></div>'
+}
+function votePlayWord(dir,w){
+ var k=typeof w==='string'&&w?w:wordKey(w||(P&&P.card&&P.card.w));
+ if(!k)return;
+ var rec=wordVotes[k]||{down:0,my:0};
  if(dir===1){if(rec.my===1)rec.my=0;else{if(rec.my===-1)rec.down=Math.max(0,(rec.down||0)-1);rec.my=1}}
  else{if(rec.my===-1){rec.my=0;rec.down=Math.max(0,(rec.down||0)-1)}else{rec.down=(rec.down||0)+1;rec.my=-1}}
  wordVotes[k]=rec;saveWordVotes();updWordVotes();
@@ -425,8 +430,7 @@ function votePlayWord(dir){
  else if(rec.my===-1)toast('Будем показывать это слово реже')
 }
 function updWordVotes(){
- if(!P||!P.card)return;var rec=wordRec(P.card.w);
- $$('#wc [data-wvote]').forEach(function(b){var v=+b.getAttribute('data-wvote');b.classList.toggle('on',rec.my===v)})
+ $$('[data-wvote][data-wk]').forEach(function(b){var rec=wordVotes[b.getAttribute('data-wk')]||{down:0,my:0};b.classList.toggle('on',rec.my===+b.getAttribute('data-wvote'))})
 }
 function drawWord(){
  var pool=poolFor(G.decks);
@@ -644,7 +648,7 @@ function showHow(){
  '<h2>Все против всех</h2><ul><li>Объясняющий идёт по кругу.</li><li>Слово угадали: свайп <span class="sw">вверх ▲</span>, объясняющему +1.</li><li>Пропуск: свайп <span class="sw">вниз ▼</span>, объясняющему −1.</li><li>Когда время вышло, последнее слово: угадали или нет. Угадали — +1 объясняющему.</li><li>В настройках можно включить «Отмечать, кто угадал»: тогда очко получают и угадавший, и объясняющий.</li><li>Игра идёт до 30 очков (можно изменить).</li></ul>'+
  '<h2>Командная игра</h2><ul><li>Объясняет игрок из команды, угаданное слово +1 команде, пропуск −1.</li><li>Последнее слово после таймера может забрать любая команда.</li><li>Обычно играют до 50 очков, ход заканчивается кругом, чтобы у всех было поровну ходов.</li></ul>'+
  '<h2>Модификации</h2><ul><li><b>Без штрафа</b>: пропуск ничего не отнимает.</li><li><b>Блиц</b>: ход 30 секунд, +2 за слово.</li><li><b>Жесты / рисунок</b>: на некоторых карточках появляется задание.</li><li><b>Спасения</b>: 1–2 пропуска за игру без штрафа.</li></ul>'+
- '<h2>Наказание</h2><p>Опция 18+. Проигравший тянет карточку-действие. Если нужно «противоположному полу», приложение выбирает партнёра по указанному полу. Перед заданием с прикосновением игра сначала спрашивает партнёра, не озвучивая само действие: если нет — выпадет другое задание без прикосновений. «Погладить партнёра» — по голой коже на конкретном месте (плечи, спина, шея, живот, бедро и т.п., без половых органов) и случайное число раз. Всё только по согласию: «Отказ» стоит −2 очка. Нет боли и опасности. Можно включить «Правда или действие», режим «Для пары» (жаркость растёт с каждым раундом), свои задания и модификатор «Алкоголь» (глоток или шот, при отказе можно выпить вместо −2). Рядом предупреждение: пейте ответственно. Задание «Найди точку»: партнёр ставит маркер, ищущий с закрытыми глазами ищет её 30 секунд; нашёл — +1, не нашёл — ещё одно задание.</p><h2>Музыка</h2><p>Кнопка «Музыка» открывает плейлисты: «Весёлый» для обычных колод, «Секс / чувственный» для Страсти и Намёков, «Жёсткий / Rammstein» для БДСМ, Пошлых хитов и Наказания. Отдельный плейлист «Hush Hush и похожие» выбирается только вручную. Можно добавить свой плейлист ссылкой из Apple Music, Яндекс Музыки или ВК — он хранится на этом телефоне, а в общий топ попадёт после подключения бесплатной базы. Один лайк с устройства. Рекомендуемый подсвечивается сам. Треки в приложение не встроены.</p><h2>Слова</h2><p>Слова не повторяются: игра помнит сыгранные и показывает только новые. На карточке можно поставить 👍 или 👎: слово с одним дизлайком появляется реже, после двух — больше не показывается. Можно добавить свою колоду, вставив слова списком.</p></div></div>')}
+ '<h2>Наказание</h2><p>Опция 18+. Проигравший тянет карточку-действие. Если нужно «противоположному полу», приложение выбирает партнёра по указанному полу. Перед заданием с прикосновением игра сначала спрашивает партнёра, не озвучивая само действие: если нет — выпадет другое задание без прикосновений. «Погладить партнёра» — по голой коже на конкретном месте (плечи, спина, шея, живот, бедро и т.п., без половых органов) и случайное число раз. Всё только по согласию: «Отказ» стоит −2 очка. Нет боли и опасности. Можно включить «Правда или действие», режим «Для пары» (жаркость растёт с каждым раундом), свои задания и модификатор «Алкоголь» (глоток или шот, при отказе можно выпить вместо −2). Рядом предупреждение: пейте ответственно. Задание «Найди точку»: партнёр ставит маркер, ищущий с закрытыми глазами ищет её 30 секунд; нашёл — +1, не нашёл — ещё одно задание.</p><h2>Музыка</h2><p>Кнопка «Музыка» открывает плейлисты: «Весёлый» для обычных колод, «Секс / чувственный» для Страсти и Намёков, «Жёсткий / Rammstein» для БДСМ, Пошлых хитов и Наказания. Отдельный плейлист «Hush Hush и похожие» выбирается только вручную. Можно добавить свой плейлист ссылкой из Apple Music, Яндекс Музыки или ВК — он хранится на этом телефоне, а в общий топ попадёт после подключения бесплатной базы. Один лайк с устройства. Рекомендуемый подсвечивается сам. Треки в приложение не встроены.</p><h2>Слова</h2><p>Слова не повторяются: игра помнит сыгранные и показывает только новые. В итогах хода у каждого слова можно поставить 👍 или 👎: слово с одним дизлайком появляется реже, после двух — больше не показывается. Можно добавить свою колоду, вставив слова списком.</p></div></div>')}
 
 /* players */
 function names(){return prefs[prefs.mode]}
@@ -783,12 +787,12 @@ function mountCard(){
  if(c.task)tk+='<span class="chip r">'+(c.task==='gest'?'🤐 Покажи жестами':'✏️ Нарисуй')+'</span>';
  if(c.task||fx)tk+='</div>';
  var free=(G.set.penalty&&G.set.saves-usedNow()>0)?'<div class="free">пропуск без штрафа (спасение)</div>':'';
- hold.innerHTML='<div class="wcard" id="wc">'+tk+'<div class="stamp g">УГАДАЛИ</div><div class="stamp s">ПРОПУСК</div>'+wordCardHtml(c.w)+free+'<div class="wvote"><button type="button" data-wvote="1" aria-label="Нравится">👍</button><button type="button" data-wvote="-1" aria-label="Не нравится">👎</button></div></div>';
- var el=$('#wc');el.style.animation='cardin .22s ease-out';bindDrag(el);updWordVotes()}
+ hold.innerHTML='<div class="wcard" id="wc">'+tk+'<div class="stamp g">УГАДАЛИ</div><div class="stamp s">ПРОПУСК</div>'+wordCardHtml(c.w)+free+'</div>';
+ var el=$('#wc');el.style.animation='cardin .22s ease-out';bindDrag(el)}
 function bindDrag(el){
  var sy=0,dy=0,act=false,id=null;
  var sg=$('.stamp.g',el),ss=$('.stamp.s',el);
- el.addEventListener('pointerdown',function(ev){if(ev.target.closest('[data-wvote]'))return;if(P.busy||P.paused||P.sheet)return;act=true;sy=ev.clientY;dy=0;id=ev.pointerId;try{el.setPointerCapture(id)}catch(e){}el.style.transition='none'});
+ el.addEventListener('pointerdown',function(ev){if(P.busy||P.paused||P.sheet)return;act=true;sy=ev.clientY;dy=0;id=ev.pointerId;try{el.setPointerCapture(id)}catch(e){}el.style.transition='none'});
  el.addEventListener('pointermove',function(ev){if(!act)return;dy=ev.clientY-sy;el.style.transform='translateY('+dy+'px) rotate('+(dy/40)+'deg)';
   var a=Math.min(1,Math.abs(dy)/90);el.classList.toggle('g',dy<-20);el.classList.toggle('s',dy>20);sg.style.opacity=dy<0?a:0;ss.style.opacity=dy>0?a:0});
  function end(){if(!act)return;act=false;
@@ -858,9 +862,9 @@ function showResults(){
  var rows=items.map(function(it,i){
   var sub=it.st==='g'?(isSolo()&&G.set.markWho&&it.by!=null?'угадал(а): '+esc(G.names[it.by]):(!isSolo()&&it.by!=null&&it.by!==e?'забрала: '+esc(G.names[it.by]):'')):it.st==='f'?'спасение, без штрафа':it.st==='n'?'не засчитано':'';
   var pt=it.st==='g'?'<span style="color:var(--g)">+'+v+'</span>':it.st==='s'&&G.set.penalty?'<span style="color:var(--r)">−1</span>':'<span style="color:#bbb">0</span>';
-  return '<button class="rs" data-i="'+i+'"><div class="w">'+wordLine(it.w)+(it.last?' <small>последнее слово</small>':'')+(sub?'<small>'+sub+'</small>':'')+'</div><div class="pt">'+pt+'</div>'+icon(it)+'</button>'}).join('');
+  return '<div class="rs" data-i="'+i+'"><div class="w">'+wordLine(it.w)+(it.last?' <small>последнее слово</small>':'')+(sub?'<small>'+sub+'</small>':'')+'</div><div class="pt">'+pt+'</div>'+voteBtns(it.w)+icon(it)+'</div>'}).join('');
  screen(hdr('Итоги хода','menu',esc(G.names[e]))+'<div class="sum"><div><b class="p" id="sg">'+g+'</b>угадано</div><div><b class="m" id="ss">'+s+'</b>пропущено</div><div><b id="sd">'+(d>0?'+':'')+d+'</b>очки '+(isSolo()?'объясняющего':'команды')+'</div></div>'+
- '<div class="body" style="padding:0">'+(rows||'<div class="hint">Слов не было</div>')+'<div class="hint">Нажми на слово, чтобы поправить отметку.</div></div><button class="next" data-act="commit">Далее</button>');
+ '<div class="body" style="padding:0">'+(rows||'<div class="hint">Слов не было</div>')+'<div class="hint">Нажми на слово, чтобы поправить отметку. 👍 и 👎 — оценить слово.</div></div><button class="next" data-act="commit">Далее</button>');
  var bk=$('.hdr .back');if(bk)bk.style.visibility='hidden';speakResults();startListen()}
 function editItem(i){
  var it=P.items[i],e=curE(),o='';
@@ -912,7 +916,7 @@ document.addEventListener('click',function(ev){
  if(t.hasAttribute('data-del')&&t.closest('.dk')){ev.stopPropagation();var id=t.getAttribute('data-del');
   modal('<h3>Удалить колоду?</h3><p>Слова этой колоды будут удалены с устройства.</p><button class="opt r" data-ok>Удалить</button><button class="opt gy" data-no>Отмена</button>');
   $('[data-no]',ov).onclick=closeOv;$('[data-ok]',ov).onclick=function(){custom=custom.filter(function(c){return c.id!==id});sv('elias.custom',custom);prefs.decks=prefs.decks.filter(function(x){return x!==id});savePrefs();closeOv();showDicts()};return}
- if(t.hasAttribute('data-wvote')){ev.preventDefault();ev.stopPropagation();votePlayWord(+t.getAttribute('data-wvote'));return}
+ if(t.hasAttribute('data-wvote')){ev.preventDefault();ev.stopPropagation();votePlayWord(+t.getAttribute('data-wvote'),t.getAttribute('data-wk'));return}
  var a=t.getAttribute('data-act');
  if(t.hasAttribute('data-mode')){var md=t.getAttribute('data-mode');var go=function(){prefs.mode=md;if(md==='pair'){prefs.punish=true;if(!prefs.pair||prefs.pair.length!==2)prefs.pair=['',''];if(!prefs.pairSex||prefs.pairSex.length!==2)prefs.pairSex=['m','f']}savePrefs();showPlayers()};if(md==='pair'&&!prefs.adultOk){askAdult(go);return}go();return}
  if(t.hasAttribute('data-gv')){ev.stopPropagation();var gp=t.getAttribute('data-gv').split('|');voteWord(gp[0],+gp[1]);return}

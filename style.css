@@ -150,11 +150,7 @@ input{font:inherit;color:inherit}
 .wcard .w.long{font-size:30px}.wcard .w.xl{font-size:24px}
 .wcard .artn{margin-top:10px;font-size:15px;font-weight:700;color:#888;max-width:100%}
 .wcard .tk{position:absolute;top:14px;left:0;right:0;display:flex;justify-content:center;gap:6px}
-.wcard .free{position:absolute;bottom:58px;font-size:12.5px;font-weight:800;color:var(--b2)}
-.wcard .wvote{position:absolute;left:0;right:0;bottom:10px;display:flex;justify-content:center;gap:10px;z-index:3}
-.wcard .wvote button{width:42px;height:42px;border-radius:21px;background:#F2F2F2;font-size:20px;line-height:42px;box-shadow:0 1px 0 #ddd}
-.wcard .wvote button.on[data-wvote="1"]{background:#DFF7E3}
-.wcard .wvote button.on[data-wvote="-1"]{background:#FFE3E1}
+.wcard .free{position:absolute;bottom:14px;font-size:12.5px;font-weight:800;color:var(--b2)}
 .wcard.g{background:#DFF7E3}.wcard.s{background:#FFE3E1}
 .wcard .stamp{position:absolute;font-size:30px;font-weight:900;opacity:0;transform:rotate(-8deg);border:4px solid;border-radius:12px;padding:2px 12px;letter-spacing:1px}
 .wcard .stamp.g{color:var(--g);top:22px;left:20px}
@@ -192,7 +188,11 @@ input{font:inherit;color:inherit}
 .modal textarea{height:150px;resize:none}
 
 /* results */
-.rs{background:#F7F7F7;border-bottom:1px solid #E4E4E4;display:flex;align-items:center;width:100%;text-align:left;padding:12px 16px 12px 20px;gap:10px;min-height:56px}
+.rs{background:#F7F7F7;border-bottom:1px solid #E4E4E4;display:flex;align-items:center;width:100%;text-align:left;padding:12px 12px 12px 16px;gap:8px;min-height:56px}
+.rs .wvote{display:flex;gap:4px;flex:none}
+.rs .wvote button{width:36px;height:36px;border-radius:18px;background:#EFEFEF;font-size:17px;line-height:36px;box-shadow:0 1px 0 #ddd}
+.rs .wvote button.on[data-wvote="1"]{background:#DFF7E3}
+.rs .wvote button.on[data-wvote="-1"]{background:#FFE3E1}
 .rs .w{flex:1;font-size:19px;font-weight:700;color:#3B3B3B;line-height:1.2;min-width:0}
 .rs .w small{display:block;font-size:12px;color:var(--b2);font-weight:700}
 .rs .pt{font-size:20px;font-weight:900;min-width:44px;text-align:right}
