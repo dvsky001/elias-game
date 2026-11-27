@@ -331,3 +331,21 @@ input{font:inherit;color:inherit}
 .prem h2{margin:0 0 12px;font-size:26px;font-weight:900;color:#fff;text-shadow:0 1px 4px rgba(0,60,100,.3)}
 .prem p{margin:0 0 12px;color:#fff;font-size:16px;line-height:1.45;text-shadow:0 1px 3px rgba(0,60,100,.25)}
 .prem .obtn{margin-top:14px}
+
+
+/* simple / full mode switch on menu */
+.modesw-wrap{position:relative;z-index:4;display:flex;flex-direction:column;align-items:center;margin-top:calc(var(--sat) + 8px);flex:none}
+.modesw{display:flex;background:rgba(255,255,255,.28);border-radius:18px;padding:3px;box-shadow:0 1px 0 rgba(0,0,0,.08)}
+.modesw button{font-weight:800;font-size:13px;padding:6px 16px;border-radius:15px;color:#fff;opacity:.9}
+.modesw button.on{background:#fff;color:#0A8FBF;opacity:1}
+.modehint{margin-top:5px;color:rgba(255,255,255,.9);font-size:11px;font-weight:700;text-shadow:0 1px 3px rgba(0,60,100,.35)}
+.menu.simple .logo{margin-top:3vh}
+.menu.simple .btns{gap:16px}
+.play.simple .pwho.slim{margin-top:4px;opacity:.9;font-size:15px}
+.play.simple .arena{padding:8px 18px 18px}
+.play.simple .wcard{height:72%;max-height:none;min-height:300px}
+.play.simple .wcard .w{font-size:52px}
+.play.simple .wcard .w.long{font-size:38px}
+.play.simple .wcard .w.xl{font-size:30px}
+.play.simple .ptop .pa{padding:0;width:44px}
+.ready.simple{background:linear-gradient(#FFB02E,#FB931A)}

@@ -193,7 +193,7 @@ function sexKey(){return prefs.mode==='team'?'teamSex':prefs.mode==='pair'?'pair
 function sexes(){var k=sexKey();if(!prefs[k])prefs[k]=[];var n=names().length;while(prefs[k].length<n)prefs[k].push(prefs[k].length%2?'f':'m');if(prefs[k].length>n)prefs[k]=prefs[k].slice(0,n);return prefs[k]}
 /* Бесплатный Supabase: подставь URL проекта и anon-ключ, чтобы включить общий рейтинг.
    service_role сюда не класть. Пока пусто — вкладка «Топ» показывает заглушку. */
-var APP_VER='12.3';
+var APP_VER='12.4';
 var SUPABASE={url:'https://zzuyvlzraykibovxsfvc.supabase.co',anon:'sb_publishable_YIMP4FCnDx2cXFbqEz9sdA_E0NuRKpp'};
 function sbOn(){return !!(SUPABASE&&SUPABASE.url&&SUPABASE.anon)}
 function sbHeads(){return {'apikey':SUPABASE.anon,'Authorization':'Bearer '+SUPABASE.anon,'Content-Type':'application/json','Prefer':'return=representation'}}
@@ -380,7 +380,7 @@ function dotWin(){stopDot();G.fines=G.fines||[];if(DareLoser>=0)G.fines.push({p:
 function dotFail(){stopDot();toast('Точку не нашли — ещё одно задание');startDareAction()}
 
 
-var prefs=Object.assign({mode:'ffa',ffa:['Игрок 1','Игрок 2','Игрок 3'],team:['Ураганы','Искры','Пузырьки'],pair:['Я','Партнёр'],
+var prefs=Object.assign({mode:'ffa',simple:false,ffa:['Игрок 1','Игрок 2','Игрок 3'],team:['Ураганы','Искры','Пузырьки'],pair:['Я','Партнёр'],
  ptsF:30,ptsT:50,time:60,penalty:true,lastAll:true,blitz:false,gest:false,draw:false,saves:0,sound:true,markWho:false,decks:['easy'],installHide:false,punish:false,punishWhen:'turn',heat:1,tod:false,alcohol:false,ffaSex:['m','f','m'],teamSex:['m','f','m'],pairSex:['m','f']},ld('elias.prefs',{}));
 if(!prefs.pair||prefs.pair.length<2)prefs.pair=['Я','Партнёр'];
 var myDares=ld('elias.mydares',[]);if(!Array.isArray(myDares))myDares=[];
@@ -460,7 +460,7 @@ function target(){return isSolo()?G.set.ptsF:G.set.ptsT}
 function curE(){return G.turnNo%G.names.length}
 
 /* ---------- views ---------- */
-function screen(html,cls){app.innerHTML='<div class="scr '+(cls||'')+'">'+html+'</div>'}
+function screen(html,cls){stopMenuSwipe();app.innerHTML='<div class="scr '+(cls||'')+'">'+html+'</div>'}
 function hdr(title,back,right){return '<div class="hdr"><button class="back" data-act="'+(back||'menu')+'">'+(back==='menu'?'Меню':back==='players'?'Игроки':back==='settings'?'Настройки':back==='dicts'?'Словари':'Назад')+'</button><h1>'+title+'</h1><div class="right">'+(right||'')+'</div></div>'}
 function closeOv(){ov.className='';ov.innerHTML=''}
 function sheet(html,dismiss){ov.className='show';ov.innerHTML='<div class="bk"></div><div class="sheet">'+html+'</div>';if(dismiss!==false)$('.bk',ov).onclick=closeOv}
@@ -635,16 +635,66 @@ function logoSvg(sz){return '<svg viewBox="0 0 230 170" width="'+(sz||210)+'"><d
  '<circle cx="190" cy="34" r="6" fill="#fff" opacity=".9"/></svg>'}
 
 function isStandalone(){return window.navigator.standalone===true||(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)}
+function isSimplePref(){return !!prefs.simple}
+function isSimple(){return !!(G&&G.simple)}
+function modeSwitchHtml(){
+ var sm=isSimplePref();
+ return '<div class="modesw-wrap"><div class="modesw" aria-label="Режим игры"><button type="button" data-act="uisimple" class="'+(sm?'on':'')+'">Простая</button><button type="button" data-act="uifull" class="'+(!sm?'on':'')+'">Полная</button></div><div class="modehint">свайп влево или вправо</div></div>'
+}
+var MenuSwipeOff=null,menuSwipedAt=0;
+function stopMenuSwipe(){if(MenuSwipeOff){try{MenuSwipeOff()}catch(e){}MenuSwipeOff=null}}
+function setSimple(on){on=!!on;if(!!prefs.simple===on)return;prefs.simple=on;savePrefs();showMenu()}
+function bindMenuSwipe(){
+ stopMenuSwipe();
+ var root=$('.scr.menu');if(!root)return;
+ var sx=0,sy=0,dx=0,dy=0,act=false,id=null,locked=false;
+ function offWin(){window.removeEventListener('pointermove',move,true);window.removeEventListener('pointerup',up,true);window.removeEventListener('pointercancel',cancel,true)}
+ function allOff(){offWin();root.removeEventListener('pointerdown',down);if(MenuSwipeOff===allOff)MenuSwipeOff=null}
+ function down(ev){
+  if(ev.isPrimary===false)return;
+  if(ev.pointerType==='mouse'&&ev.button!==0)return;
+  if(ev.target.closest('.install .x'))return;
+  act=true;locked=false;sx=ev.clientX;sy=ev.clientY;dx=0;dy=0;id=ev.pointerId;
+  window.addEventListener('pointermove',move,true);
+  window.addEventListener('pointerup',up,true);
+  window.addEventListener('pointercancel',cancel,true);
+ }
+ function move(ev){if(!act||ev.pointerId!==id)return;dx=ev.clientX-sx;dy=ev.clientY-sy;if(!locked&&Math.abs(dx)>24&&Math.abs(dx)>Math.abs(dy)*1.2)locked=true}
+ function up(ev){
+  if(!act||ev.pointerId!==id)return;act=false;offWin();
+  if(locked&&Math.abs(dx)>=80&&Math.abs(dx)>=Math.abs(dy)*1.2){menuSwipedAt=Date.now();setSimple(!prefs.simple)}
+ }
+ function cancel(ev){if(!act||ev.pointerId!==id)return;act=false;offWin()}
+ root.addEventListener('pointerdown',down);
+ MenuSwipeOff=allOff;
+}
+function startSimpleGame(){
+ if(P){stopTimer();stopDrag();P=null}
+ var decks=(prefs.decks||[]).filter(function(id){return id&&!isAdultDeck(id)});
+ if(poolFor(decks).length<10)decks=['easy'];
+ if(poolFor(decks).length<10){toast('В колодах слишком мало слов');return}
+ G={mode:'team',names:['Команда 1','Команда 2'],set:{ptsF:30,ptsT:50,time:60,penalty:true,lastAll:false,markWho:false,blitz:false,gest:false,draw:false,saves:0,sound:prefs.sound!==false,punish:false,punishWhen:'turn',heat:1,tod:false,alcohol:false,pairEscalate:false},
+  sex:['m','f'],fines:[],usedDares:[],pendingFx:null,activeFx:null,
+  decks:decks.slice(),turnNo:0,logs:[],phase:'play',over:false,simple:true};
+ saveG();showPlay();
+}
 function showMenu(){
  closeOv();stopVoice();
  var ios=/iphone|ipad|ipod/i.test(navigator.userAgent),inst='';
  if(ios&&!isStandalone()&&!prefs.installHide)inst='<div class="install"><b>Поставь на экран:</b> нажми «Поделиться» <span>⬆︎</span> → «На экран “Домой”». Игра будет работать офлайн.<button class="x" data-act="hideinst">×</button></div>';
- screen(skySvg()+cityScene(false)+inst+'<div class="logo">'+logoSvg()+'</div><div class="tag">игра в слова для компании</div>'+
- '<div class="btns">'+(G?'<button class="obtn" data-act="continue">Продолжить</button>':'')+'<button class="obtn" data-act="new">Новая игра</button><button class="obtn" data-act="how">Как играть</button><button class="obtn cy sm" data-act="music">Музыка вкл/выкл</button><button class="obtn sm" data-act="suggest">Предложить улучшение</button></div>','menu');bindAds()}
+ var sm=isSimplePref();
+ var btns=G?'<button class="obtn" data-act="continue">Продолжить</button>':'';
+ if(sm)btns+='<button class="obtn" data-act="quick">Играть</button>';
+ else btns+='<button class="obtn" data-act="new">Новая игра</button><button class="obtn" data-act="how">Как играть</button><button class="obtn cy sm" data-act="music">Музыка вкл/выкл</button><button class="obtn sm" data-act="suggest">Предложить улучшение</button>';
+ screen(skySvg()+(sm?'':cityScene(false))+inst+modeSwitchHtml()+'<div class="logo">'+logoSvg()+'</div><div class="tag">'+(sm?'простая игра — вверх угадали, вниз пропуск':'игра в слова для компании')+'</div>'+
+ '<div class="btns">'+btns+'</div>','menu'+(sm?' simple':''));
+ if(!sm)bindAds();
+ bindMenuSwipe();
+}
 
 function showHow(){
  screen(hdr('Как играть','menu')+'<div class="body"><div class="how">'+
- '<h2>Идея</h2><p>Один объясняет слово с карточки, остальные угадывают. Называть само слово и однокоренные нельзя.</p><p>Во время хода кнопка «Пауза» останавливает таймер и прячет слово. Если свернуть приложение, пауза включается сама.</p>'+
+ '<h2>Идея</h2><p>Один объясняет слово с карточки, остальные угадывают. Называть само слово и однокоренные нельзя.</p><p>На главном экране свайп влево или вправо переключает простую и полную версию. В простой: одна кнопка «Играть» (две команды, 60 секунд), на ходе только слово, таймер и счёт, свайп вверх — угадали, вниз — пропуск.</p><p>Во время хода кнопка «Пауза» останавливает таймер и прячет слово. Если свернуть приложение, пауза включается сама.</p>'+
  '<h2>Все против всех</h2><ul><li>Объясняющий идёт по кругу.</li><li>Слово угадали: свайп <span class="sw">вверх ▲</span>, объясняющему +1.</li><li>Пропуск: свайп <span class="sw">вниз ▼</span>, объясняющему −1.</li><li>Когда время вышло, последнее слово: угадали или нет. Угадали — +1 объясняющему.</li><li>В настройках можно включить «Отмечать, кто угадал»: тогда очко получают и угадавший, и объясняющий.</li><li>Игра идёт до 30 очков (можно изменить).</li></ul>'+
  '<h2>Командная игра</h2><ul><li>Объясняет игрок из команды, угаданное слово +1 команде, пропуск −1.</li><li>Последнее слово после таймера может забрать любая команда.</li><li>Обычно играют до 50 очков, ход заканчивается кругом, чтобы у всех было поровну ходов.</li></ul>'+
  '<h2>Модификации</h2><ul><li><b>Без штрафа</b>: пропуск ничего не отнимает.</li><li><b>Блиц</b>: ход 30 секунд, +2 за слово.</li><li><b>Жесты / рисунок</b>: на некоторых карточках появляется задание.</li><li><b>Спасения</b>: 1–2 пропуска за игру без штрафа.</li></ul>'+
@@ -754,6 +804,12 @@ function chipsHtml(){var s=G.set,c=['<span class="chip b">⏱ '+(s.blitz?30:s.ti
 function showReady(){
  closeOv();stopListen();G.phase='ready';saveG();
  var e=curE(),cs=calc(G.logs),left=G.set.saves-cs.used[e];
+ if(isSimple()){
+  screen('<div class="top"><button data-act="menu">‹ Меню</button></div>'+
+   '<div class="rcard"><div class="lab">Ход команды</div><div class="who">'+esc(G.names[e])+'</div></div>'+
+   '<div class="bot"><button class="obtn" data-act="go">Старт</button></div>','ready simple');
+  speakTurn();startListen();return;
+ }
  var info=isSolo()?(G.set.markWho?'Остальные угадывают все сразу. Кто угадал первым: +1 ему и +1 тебе. Пропуск −1 тебе.':'Остальные угадывают все сразу. Угадали — +1 тебе. Пропуск −1 тебе.'):'Объясняет игрок команды, остальные угадывают.';
  if(!G.set.penalty)info=info.replace(/ Пропуск −1 тебе\./,' Пропуск без штрафа.').replace('Объясняет игрок команды, остальные угадывают.','Объясняет игрок команды, остальные угадывают. Пропуск без штрафа.');
  if(G.set.penalty&&G.set.saves>0)info+=' Спасений осталось: '+Math.max(0,left)+'.';
@@ -766,13 +822,15 @@ var P=null;
 function showPlay(){
  closeOv();G.phase='play';
  if(G.pendingFx){G.activeFx=G.pendingFx;G.pendingFx=null}else G.activeFx=null;
- var e=curE(),dur=G.set.blitz?30:G.set.time;
+ var e=curE(),dur=G.set.blitz?30:G.set.time,simple=isSimple();
  P={items:[],dur:dur,rem:dur*1000,end:0,paused:false,iv:null,card:newCard(),busy:false,lastBeep:99,sheet:false};
- screen(cityScene(true)+'<div class="ptop"><button class="pa" data-act="pause" aria-label="Пауза"><i></i><i></i><span>Пауза</span></button><div class="pt" id="tm">'+dur+'</div><div class="ps">очки хода<b id="pd">0</b></div></div>'+
- '<div class="pwho">'+esc(G.names[e])+(G.set.penalty&&G.set.saves>0?' · спасений: <span id="svl"></span>':'')+'</div><div class="pbar"><i id="pb"></i></div>'+
- '<div class="arena"><div class="hintup">УГАДАЛИ</div><div class="hintdn">ПРОПУСК</div><div id="cardhold" style="width:100%;display:flex;justify-content:center"></div></div>'+
- '<div class="pact"><button class="no" data-act="skip" aria-label="Пропуск"><span class="ic">✕</span><span class="lab">Пропуск</span></button><button class="yes" data-act="ok" aria-label="Угадали"><span class="ic">✓</span><span class="lab">Угадали</span></button></div>','play');
- mountCard();updPlay();bindAds();
+ var top='<div class="ptop"><button class="pa" data-act="pause" aria-label="Пауза"><i></i><i></i>'+(simple?'':'<span>Пауза</span>')+'</button><div class="pt" id="tm">'+dur+'</div><div class="ps">'+(simple?'счёт':'очки хода')+'<b id="pd">0</b></div></div>';
+ var mid=simple?'<div class="pwho slim">'+esc(G.names[e])+'</div><div class="pbar"><i id="pb"></i></div><div class="arena"><div id="cardhold" style="width:100%;display:flex;justify-content:center"></div></div>':
+  '<div class="pwho">'+esc(G.names[e])+(G.set.penalty&&G.set.saves>0?' · спасений: <span id="svl"></span>':'')+'</div><div class="pbar"><i id="pb"></i></div>'+
+  '<div class="arena"><div class="hintup">УГАДАЛИ</div><div class="hintdn">ПРОПУСК</div><div id="cardhold" style="width:100%;display:flex;justify-content:center"></div></div>'+
+  '<div class="pact"><button class="no" data-act="skip" aria-label="Пропуск"><span class="ic">✕</span><span class="lab">Пропуск</span></button><button class="yes" data-act="ok" aria-label="Угадали"><span class="ic">✓</span><span class="lab">Угадали</span></button></div>';
+ screen((simple?'':cityScene(true))+top+mid,'play'+(simple?' simple':''));
+ mountCard();updPlay();if(!simple)bindAds();
  P.end=Date.now()+P.rem;P.iv=setInterval(tick,100);beep(660,.12);speakTurn();startListen()}
 function usedNow(){var e=curE();return calc(G.logs).used[e]+P.items.filter(function(i){return i.st==='f'}).length}
 function updPlay(){
@@ -937,6 +995,7 @@ function showFinal(sc){
 
 /* ---------- events ---------- */
 document.addEventListener('click',function(ev){
+ if(menuSwipedAt&&Date.now()-menuSwipedAt<500){ev.preventDefault();ev.stopPropagation();return}
  var t=ev.target.closest('[data-act],[data-mode],[data-tg],[data-sv],[data-dk],[data-del],[data-deldare],[data-delpl],[data-like],[data-gv],[data-wvote],[data-i],[data-sex],[data-heat],[data-pwhen],[data-mpick]');
  if(!t||!app.contains(t)&&!ov.contains(t))return;
  if(t.hasAttribute('data-del')&&t.closest('.dk')){ev.stopPropagation();var id=t.getAttribute('data-del');
@@ -969,6 +1028,9 @@ document.addEventListener('click',function(ev){
   case 'hideinst':prefs.installHide=true;savePrefs();return showMenu();
   case 'continue':if(G){return G.phase==='board'?showBoard(true):showReady()}return showMenu();
   case 'new':resetNamesForNewGame();return showPlayers();
+  case 'quick':return startSimpleGame();
+  case 'uisimple':setSimple(true);return;
+  case 'uifull':setSimple(false);return;
   case 'how':return showHow();
   case 'music':musicPanel();return;
 case 'suggest':showSuggest();return;
@@ -1023,5 +1085,5 @@ if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostnam
   document.addEventListener('visibilitychange',function(){if(!document.hidden)chk()});
   setInterval(chk,300000);chk()}).catch(function(){})}
 loadGlobal();
-window.__elias={get G(){return G},get P(){return P},get DARES(){return DARES},get TRUTHS(){return TRUTHS},get myDares(){return myDares},get wordVotes(){return wordVotes},currentHeat:currentHeat,isTouchDare:isTouchDare,concretizeDare:concretizeDare,pickDareCard:pickDareCard,votePlayWord:votePlayWord,showTouchConsent:showTouchConsent,startDareAction:startDareAction,SUPABASE:SUPABASE};
+window.__elias={get G(){return G},get P(){return P},get DARES(){return DARES},get TRUTHS(){return TRUTHS},get myDares(){return myDares},get wordVotes(){return wordVotes},get prefs(){return prefs},isSimple:isSimple,isSimplePref:isSimplePref,setSimple:setSimple,startSimpleGame:startSimpleGame,currentHeat:currentHeat,isTouchDare:isTouchDare,concretizeDare:concretizeDare,pickDareCard:pickDareCard,votePlayWord:votePlayWord,showTouchConsent:showTouchConsent,startDareAction:startDareAction,SUPABASE:SUPABASE};
 })();
