@@ -193,7 +193,8 @@ function sexKey(){return prefs.mode==='team'?'teamSex':prefs.mode==='pair'?'pair
 function sexes(){var k=sexKey();if(!prefs[k])prefs[k]=[];var n=names().length;while(prefs[k].length<n)prefs[k].push(prefs[k].length%2?'f':'m');if(prefs[k].length>n)prefs[k]=prefs[k].slice(0,n);return prefs[k]}
 /* Бесплатный Supabase: подставь URL проекта и anon-ключ, чтобы включить общий рейтинг.
    service_role сюда не класть. Пока пусто — вкладка «Топ» показывает заглушку. */
-var SUPABASE={url:'',anon:''};
+var APP_VER='6.0';
+var SUPABASE={url:'https://zzuyvlzraykibovxsfvc.supabase.co',anon:'sb_publishable_YIMP4FCnDx2cXFbqEz9sdA_E0NuRKpp'};
 function sbOn(){return !!(SUPABASE&&SUPABASE.url&&SUPABASE.anon)}
 function sbHeads(){return {'apikey':SUPABASE.anon,'Authorization':'Bearer '+SUPABASE.anon,'Content-Type':'application/json','Prefer':'return=representation'}}
 function deviceId(){var id=ld('elias.device','');if(!id||typeof id!=='string'){id='d'+Math.random().toString(36).slice(2)+Date.now().toString(36);sv('elias.device',id)}return id}
@@ -229,14 +230,55 @@ function loadTop(){
   if(!rows||!rows.length){box.innerHTML='<div class="sub">Пока пусто. Добавь свой плейлист и отметь «в общий рейтинг».</div>';return}
   box.innerHTML=rows.map(function(g,i){var liked=likedPl.indexOf(g.id)>-1;return '<div class="mg"><div class="mt">'+(i+1)+'. '+esc(g.name)+'</div><div class="mh">❤ '+(g.likes||0)+'</div><div class="opts"><a class="opt b" target="_blank" rel="noopener noreferrer" href="'+esc(g.url)+'">Открыть</a><button type="button" class="opt'+(liked?' gy':'')+'" data-like="'+g.id+'" '+(liked?'disabled':'')+'>'+(liked?'Ты уже лайкнул':'Лайк')+'</button></div></div>'}).join('');
  }).catch(function(){if(box.isConnected)box.innerHTML='<div class="sub">Не удалось загрузить топ. Попробуй позже.</div>'})}
+function sbBase(){return SUPABASE.url.replace(/\/$/,'')}
+function sbRpc(fn,body){return fetch(sbBase()+'/rest/v1/rpc/'+fn,{method:'POST',headers:sbHeads(),body:JSON.stringify(body)}).then(function(r){if(!r.ok)throw new Error('http');return r.json()})}
 function publishTop(nm,u,cb){
  var err=plLimit(nm,u);if(err){toast(err);if(cb)cb();return}
- fetch(SUPABASE.url.replace(/\/$/,'')+'/rest/v1/playlists',{method:'POST',headers:sbHeads(),body:JSON.stringify({name:nm,url:u})}).then(function(r){
-  if(r.status===409){toast('Такой плейлист уже в рейтинге');return}
-  if(!r.ok)throw new Error('http');toast('Плейлист отправлен в общий топ')
+ sbRpc('add_playlist',{p_name:nm,p_url:u,p_dev:deviceId()}).then(function(s){
+  if(s==='dup')toast('Такой плейлист уже в рейтинге');else if(s==='limit')toast('Лимит: 5 плейлистов в сутки');else if(s==='ok')toast('Плейлист отправлен в общий топ');else toast('Плейлист не принят')
  }).catch(function(){toast('Не вышло отправить в рейтинг')}).then(function(){if(cb)cb()})}
 function likeTop(id){if(!sbOn())return;if(likedPl.indexOf(id)>-1){toast('С этого устройства уже есть лайк');return}
- fetch(SUPABASE.url.replace(/\/$/,'')+'/rest/v1/rpc/like_playlist',{method:'POST',headers:sbHeads(),body:JSON.stringify({p_id:id})}).then(function(r){if(!r.ok)throw new Error('http');likedPl.push(id);saveLikes();toast('Лайк засчитан');loadTop()}).catch(function(){toast('Не вышло поставить лайк')})}
+ sbRpc('like_playlist',{p_id:id,p_dev:deviceId()}).then(function(n){if(n<0)throw new Error('bad');likedPl.push(id);saveLikes();toast('Лайк засчитан');loadTop()}).catch(function(){toast('Не вышло поставить лайк')})}
+/* ---------- общая база слов (Supabase) ---------- */
+var GW=ld('elias.gwords',[]);if(!Array.isArray(GW))GW=[];
+var gwVotes=ld('elias.gvotes',{});if(!gwVotes||typeof gwVotes!=='object')gwVotes={};
+var gwAt=0;
+function gwVisible(w){return (w.dislikes||0)-(w.likes||0)<5&&(!w.adult||!!prefs.adultOk)}
+function globalWords(){return GW.filter(gwVisible).map(function(w){return w.txt})}
+function loadGlobal(cb){
+ if(!sbOn()){if(cb)cb(false);return}
+ gwAt=Date.now();
+ fetch(sbBase()+'/rest/v1/words?select=id,txt,adult,likes,dislikes&order=created_at.desc&limit=1000',{headers:sbHeads()}).then(function(r){if(!r.ok)throw new Error('http');return r.json()}).then(function(rows){
+  if(!Array.isArray(rows))throw new Error('fmt');var ch=JSON.stringify(rows)!==JSON.stringify(GW);GW=rows;sv('elias.gwords',GW);if(cb)cb(ch)
+ }).catch(function(){if(cb)cb(false)})}
+function addWordModal(){
+ modal('<h3>Слово в общую базу</h3><p>Слово или короткая фраза (2–40 символов). Увидят все игроки. Без ссылок. До 10 слов в сутки.</p><input class="tx" id="gw" placeholder="Слово" maxlength="40"><label class="chk"><input type="checkbox" id="gad"> 18+ (только для взрослых)</label><button class="opt" data-ok>Добавить</button><button class="opt gy" data-no>Закрыть</button>');
+ $('[data-no]',ov).onclick=closeOv;
+ $('[data-ok]',ov).onclick=function(){
+  var t=$('#gw').value.trim().replace(/\s+/g,' '),ad=$('#gad').checked;
+  if(t.length<2){toast('Слишком короткое слово');return}
+  if(ad&&!prefs.adultOk){closeOv();askAdult(addWordModal);return}
+  var k=t.toLowerCase().replace(/ё/g,'е');
+  if(GW.some(function(w){return (w.txt||'').toLowerCase().replace(/ё/g,'е')===k})){toast('Такое слово уже есть');return}
+  sbRpc('add_word',{p_txt:t,p_adult:ad,p_dev:deviceId()}).then(function(s){
+   if(s==='ok'){toast('Слово добавлено в общую базу');closeOv();loadGlobal(function(){showDicts()})}
+   else if(s==='dup')toast('Такое слово уже есть');
+   else if(s==='limit')toast('Лимит: 10 слов в сутки');
+   else toast('Слово не принято (коротко, длинно или со ссылкой)')
+  }).catch(function(){toast('Нет связи с базой')})}}
+function votePanel(){
+ var list=GW.filter(function(w){return gwVisible(w)&&!gwVotes[w.id]}).slice(0,30);
+ var h='<h3>Оцени слова</h3><div class="sub">Если слов с минусом много — слово пропадает из колоды. Один голос с устройства.</div>';
+ if(!list.length)h+='<div class="sub">Нет слов для оценки.</div>';
+ h+=list.map(function(w){return '<div class="mg"><div class="mt">'+esc(w.txt)+(w.adult?' <span class="rec">18+</span>':'')+'</div><div class="opts"><button type="button" class="opt" data-gv="'+w.id+'|1">👍 '+(w.likes||0)+'</button><button type="button" class="opt gy" data-gv="'+w.id+'|-1">👎 '+(w.dislikes||0)+'</button></div></div>'}).join('');
+ sheet(h)}
+function voteWord(id,val){
+ sbRpc('vote_word',{p_id:id,p_dev:deviceId(),p_val:val}).then(function(s){
+  if(s==='ok'||s==='already'){gwVotes[id]=val;sv('elias.gvotes',gwVotes);
+   if(s==='ok')GW.forEach(function(w){if(w.id===id){if(val===1)w.likes=(w.likes||0)+1;else w.dislikes=(w.dislikes||0)+1}});
+   sv('elias.gwords',GW);toast(s==='ok'?'Голос принят':'Ты уже голосовал');votePanel()}
+  else toast('Голос не принят')
+ }).catch(function(){toast('Нет связи с базой')})}
 
 function lastTurnScores(){var last=G.logs[G.logs.length-1],n=G.names.length,a=[],i;for(i=0;i<n;i++)a.push(0);if(!last)return a;var v=unit(G.set);last.items.forEach(function(it){if(it.st==='g'){if(isSolo()&&G.set.markWho&&it.by!=null){a[it.by]+=v;a[last.e]+=v}else a[it.by!=null?it.by:last.e]+=v}else if(it.st==='s'&&G.set.penalty)a[last.e]-=1});return a}
 function pickOpp(loser){var sex=G.sex||[],mine=sex[loser],c=[];for(var i=0;i<G.names.length;i++)if(i!==loser&&mine&&sex[i]&&sex[i]!==mine)c.push(i);return c.length?pick(c):-1}
@@ -293,7 +335,7 @@ function beep(f,d,v){if(!prefs.sound)return;try{AC=AC||new (window.AudioContext|
 function toast(t){var e=document.createElement('div');e.className='toast';e.textContent=t;document.body.appendChild(e);setTimeout(function(){e.remove()},2600)}
 
 /* ---------- words ---------- */
-function deckWords(id){if(W[id])return W[id];for(var i=0;i<custom.length;i++)if(custom[i].id===id)return custom[i].words;return[]}
+function deckWords(id){if(W[id])return W[id];if(id==='global')return globalWords();for(var i=0;i<custom.length;i++)if(custom[i].id===id)return custom[i].words;return[]}
 function poolFor(ids){var seen={},out=[];ids.forEach(function(id){deckWords(id).forEach(function(w){var k=wordKey(w);if(!seen[k]){seen[k]=1;out.push(w)}})});return out}
 function drawWord(){
  var pool=poolFor(G.decks);
@@ -388,7 +430,7 @@ function showSettings(){
   var mine=myDares.map(function(d,i){return '<div class="mydare"><span>'+esc(d.t)+' · '+'🌶'.repeat(d.lv||1)+'</span><button type="button" data-deldare="'+i+'">Удалить</button></div>'}).join('');
   punishExtra+='<div class="set col"><div class="l1"><div><div class="t">Свои задания</div><div class="s">попадают в общий пул наказаний, хранятся на этом телефоне</div></div></div>'+(mine||'<div class="hint" style="padding:0 0 8px">Пока своих заданий нет.</div>')+'<button type="button" class="optb" data-act="adddare">+ Своё задание</button></div>';
  }
- screen(hdr('Настройки','players')+'<div class="body">'+
+ screen(hdr('Настройки','players')+'<div class="body"><div class="sub" style="text-align:center">Версия '+APP_VER+' · обновляется само</div>'+
  '<div class="set"><div class="l1"><div><div class="t">Очки до победы</div><div class="s">чтобы выиграть игру</div></div><div class="v" id="v1">'+prefs[pk]+'</div></div><input type="range" id="r1" min="10" max="'+(solo?100:150)+'" step="5" value="'+prefs[pk]+'"></div>'+
  '<div class="set '+(prefs.blitz?'dim':'')+'" id="timeset"><div class="l1"><div><div class="t">Время хода</div><div class="s">длительность в секундах</div></div><div class="v" id="v2">'+(prefs.blitz?30:prefs.time)+'</div></div><input type="range" id="r2" min="15" max="120" step="5" value="'+prefs.time+'"></div>'+
  tg('penalty','Штраф за пропуск','−1 очко за каждое пропущенное слово')+
@@ -424,8 +466,9 @@ function showDicts(){
   return '<button class="dk '+d.cls+(on?' on':'')+'" data-dk="'+d.id+'">'+dkArt(d.id)+'<div class="n">'+d.name+'</div><div class="d">'+d.diff+'</div><div class="ex">'+(d.adult&&!on?'Слова скрыты до подтверждения':esc(sampleOf(d.id)))+'</div><div class="cnt">'+W[d.id].length+'</div>'+(d.badge?'<span class="bd'+(d.red?' red':'')+'" style="right:54px">'+d.badge+'</span>':'')+'<span class="ck">'+(on?'✓':'')+'</span></button>'}).join('');
  h+=custom.map(function(c){var on=prefs.decks.indexOf(c.id)>-1;
   return '<button class="dk dk-cust'+(on?' on':'')+'" data-dk="'+c.id+'"><div class="n">'+esc(c.name)+'</div><div class="d">Своя колода</div><div class="ex">'+esc(c.words.slice(0,3).join(', '))+'</div><div class="cnt">'+c.words.length+'</div><span class="bd gr" style="right:54px">СВОЯ</span><span class="ck">'+(on?'✓':'')+'</span><span data-del="'+c.id+'" style="position:absolute;left:20px;bottom:10px;color:#c23;font-size:13px;font-weight:700;padding:4px 0">Удалить</span></button>'}).join('');
+ if(sbOn()){var gon=prefs.decks.indexOf('global')>-1,gl=globalWords();h+='<button class="dk dk-cust'+(gon?' on':'')+'" data-dk="global"><div class="n">Общая база</div><div class="d">Слова всех игроков</div><div class="ex">'+esc(gl.slice(0,3).join(', ')||'пока пусто')+'</div><div class="cnt">'+gl.length+'</div><span class="bd gr" style="right:54px">ОБЩАЯ</span><span class="ck">'+(gon?'✓':'')+'</span></button>';if(Date.now()-gwAt>60000)loadGlobal(function(ch){if(ch&&$('[data-dk="global"]'))showDicts()})}
  var total=poolFor(prefs.decks).length,left=poolFor(prefs.decks).filter(function(w){return !played[wordKey(w)]}).length;
- screen(hdr('Словари','settings')+'<div class="body" style="padding:0">'+h+'<button class="addck" data-act="addck"><span style="font-size:26px;line-height:1">+</span> Своя колода (вставить слова)</button>'+
+ screen(hdr('Словари','settings')+'<div class="body" style="padding:0">'+h+'<button class="addck" data-act="addck"><span style="font-size:26px;line-height:1">+</span> Своя колода (вставить слова)</button>'+(sbOn()?'<button class="addck" data-act="gadd"><span style="font-size:26px;line-height:1">+</span> Слово в общую базу</button><button class="addck" data-act="gvote">👍👎 Оценить слова других</button>':'')+
  '<div class="goal">Выбрано слов: '+total+' · новых: '+left+'</div><button class="rst" data-act="resetplayed">Забыть сыгранные слова</button></div><button class="next" data-act="start" '+(prefs.decks.length?'':'disabled')+'>Играть</button>')}
 function isAdultDeck(id){for(var i=0;i<DECKS.length;i++)if(DECKS[i].id===id)return !!DECKS[i].adult;return false}
 function askAdult(cb){modal('<h3>Колода 18+</h3><p>Слова на сексуальную тематику и взрослый юмор. Только для взрослых. Подтверди, что тебе есть 18 лет.</p><button class="opt r" data-ok>Мне 18+</button><button class="opt gy" data-no>Отмена</button>');
@@ -609,13 +652,14 @@ function showFinal(sc){
 
 /* ---------- events ---------- */
 document.addEventListener('click',function(ev){
- var t=ev.target.closest('[data-act],[data-mode],[data-tg],[data-sv],[data-dk],[data-del],[data-deldare],[data-delpl],[data-like],[data-i],[data-sex],[data-heat],[data-pwhen],[data-mpick]');
+ var t=ev.target.closest('[data-act],[data-mode],[data-tg],[data-sv],[data-dk],[data-del],[data-deldare],[data-delpl],[data-like],[data-gv],[data-i],[data-sex],[data-heat],[data-pwhen],[data-mpick]');
  if(!t||!app.contains(t)&&!ov.contains(t))return;
  if(t.hasAttribute('data-del')&&t.closest('.dk')){ev.stopPropagation();var id=t.getAttribute('data-del');
   modal('<h3>Удалить колоду?</h3><p>Слова этой колоды будут удалены с устройства.</p><button class="opt r" data-ok>Удалить</button><button class="opt gy" data-no>Отмена</button>');
   $('[data-no]',ov).onclick=closeOv;$('[data-ok]',ov).onclick=function(){custom=custom.filter(function(c){return c.id!==id});sv('elias.custom',custom);prefs.decks=prefs.decks.filter(function(x){return x!==id});savePrefs();closeOv();showDicts()};return}
  var a=t.getAttribute('data-act');
  if(t.hasAttribute('data-mode')){var md=t.getAttribute('data-mode');var go=function(){prefs.mode=md;if(md==='pair'){prefs.punish=true;if(!prefs.pair||prefs.pair.length!==2)prefs.pair=['Я','Партнёр'];if(!prefs.pairSex||prefs.pairSex.length!==2)prefs.pairSex=['m','f']}savePrefs();showPlayers()};if(md==='pair'&&!prefs.adultOk){askAdult(go);return}go();return}
+ if(t.hasAttribute('data-gv')){ev.stopPropagation();var gp=t.getAttribute('data-gv').split('|');voteWord(gp[0],+gp[1]);return}
  if(t.hasAttribute('data-like')){ev.stopPropagation();likeTop(t.getAttribute('data-like'));return}
  if(t.hasAttribute('data-delpl')){ev.stopPropagation();var pid=t.getAttribute('data-delpl');myPl=myPl.filter(function(g){return g.id!==pid});savePl();if(prefs.musicPick===pid){prefs.musicPick='';prefs.musicAuto=true;savePrefs()}musicPanel();return}
  if(t.hasAttribute('data-mpick')&&!ev.target.closest('a')&&!ev.target.closest('[data-delpl]')){prefs.musicPick=t.getAttribute('data-mpick');prefs.musicAuto=false;savePrefs();musicPanel();return}
@@ -642,6 +686,8 @@ document.addEventListener('click',function(ev){
   case 'mtab-list':musicTab='list';musicPanel();return;
   case 'mtab-top':musicTab='top';musicPanel();return;
   case 'addpl':addPlModal();return;
+  case 'gadd':addWordModal();return;
+  case 'gvote':votePanel();return;
   case 'mauto':prefs.musicAuto=true;prefs.musicPick='';savePrefs();musicPanel();return;
   case 'todtruth':return showTruth();
   case 'toddare':return startDareAction();
@@ -677,6 +723,13 @@ document.addEventListener('contextmenu',function(e){e.preventDefault()});
 var st=document.createElement('style');st.textContent='@keyframes cardin{from{transform:translateY(40px) scale(.94);opacity:0}to{transform:none;opacity:1}}';document.head.appendChild(st);
 
 showMenu();
-if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'||location.hostname==='127.0.0.1')){navigator.serviceWorker.register('sw.js').catch(function(){});var __re=false;navigator.serviceWorker.addEventListener('controllerchange',function(){if(__re)return;__re=true;location.reload()})}
+if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'||location.hostname==='127.0.0.1')){
+ var __re=false,__had=!!navigator.serviceWorker.controller;
+ navigator.serviceWorker.addEventListener('controllerchange',function(){if(__re||!__had)return;__re=true;location.reload()});
+ navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(function(reg){
+  var chk=function(){try{reg.update()}catch(e){}};
+  document.addEventListener('visibilitychange',function(){if(!document.hidden)chk()});
+  setInterval(chk,300000);chk()}).catch(function(){})}
+loadGlobal();
 window.__elias={get G(){return G},get P(){return P},get DARES(){return DARES},get TRUTHS(){return TRUTHS},get myDares(){return myDares},currentHeat:currentHeat,SUPABASE:SUPABASE};
 })();
